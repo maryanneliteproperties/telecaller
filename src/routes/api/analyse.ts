@@ -6,8 +6,8 @@ export const Route = createFileRoute("/api/analyse")({
     const { workspaceIdentity, readLead, workspaceAdmin } = await import("@/lib/workspace.server");
     const identity = await workspaceIdentity(request);
     if (!identity) return Response.json({ error: "முதலில் login பண்ணுங்க." }, { status: 401 });
-    const apiKey = process.env["LOVABLE_API_KEY"];
-    if (!apiKey) return Response.json({ error: "Conversation analysis is not configured." }, { status: 500 });
+    const apiKey = process.env["GEMINI_API_KEY"];
+    if (!apiKey) return Response.json({ error: "GEMINI_API_KEY is missing from the server environment." }, { status: 500 });
     if (Number(request.headers.get("content-length") ?? 0) > 220000) return Response.json({ error: "This transcript is too long to analyse in one report." }, { status: 413 });
     let value: unknown;
     try { value = await request.json(); } catch { return Response.json({ error: "Could not read the transcript." }, { status: 400 }); }
