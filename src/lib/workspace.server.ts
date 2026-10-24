@@ -10,7 +10,16 @@ export async function digest(value: string) {
 }
 export async function consumeAttempt(scope: string) {
   const { data, error } = await workspaceAdmin().rpc("consume_workspace_attempt", { attempt_scope: await digest(scope) });
-  if (error) throw new Error("Account setup இன்னும் முடியல. Admin setup SQL-ஐ run பண்ணுங்க.");
+  if (error) {
+    // Log only the database error fields; never log keys, PINs, or request data.
+    console.error("[consumeAttempt] Supabase RPC failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error("Account setup இன்னும் முடியல. Admin setup SQL-ஐ run பண்ணுங்க.");
+  }
   if (!data) throw new Error("அதிக முயற்சிகள் வந்திருக்கு. 15 நிமிடம் கழித்து முயற்சி பண்ணுங்க.");
 }
 export async function workspaceIdentity(request: Request = getRequest()): Promise<WorkspaceIdentity | null> {
