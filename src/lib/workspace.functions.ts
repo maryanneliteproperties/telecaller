@@ -10,7 +10,9 @@ export const getWorkspaceIdentity = createServerFn({ method: "GET" }).handler(as
 });
 export const loginAdmin = createServerFn({ method: "POST" }).inputValidator((v: unknown) => adminLoginSchema.parse(v)).handler(async ({ data }) => {
   const { consumeAttempt, digest, workspaceAdmin } = await import("./workspace.server");
-  await consumeAttempt("admin-pin");
+  const request = getRequest();
+  const clientIp = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  await consumeAttempt(`admin-pin:${clientIp}`);
   const pin = process.env["ADMIN_LOGIN_PIN"];
   if (!pin || await digest(data.pin) !== await digest(pin)) throw new Error("PIN சரியில்லை.");
   const token = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(v => v.toString(16).padStart(2, "0")).join("");
