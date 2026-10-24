@@ -1,0 +1,1 @@
+export const DESTINATION_URL = "https://hnxynndrarzruewchmfh.supabase.co";
