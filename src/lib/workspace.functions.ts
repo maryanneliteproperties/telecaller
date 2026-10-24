@@ -20,7 +20,6 @@ export const loginAdmin = createServerFn({ method: "POST" }).inputValidator((v: 
   if (error) throw new Error("Admin session உருவாக்க முடியல.");
   // The preview runs inside an iframe, where SameSite=Strict cookies are
   // blocked; cross-site embeds need SameSite=None; Secure (partitioned).
-  const request = getRequest();
   const https = new URL(request.url).protocol === "https:" || request.headers.get("x-forwarded-proto")?.includes("https") === true;
   setCookie("workspace_admin", token, { httpOnly: true, secure: https, sameSite: https ? "none" : "lax", partitioned: https, path: "/", maxAge: 8 * 3600 });
   return { ok: true };
