@@ -27,35 +27,47 @@ function safeError(error: unknown): { status: number; message: string } {
 export async function analyseTranscript(request: Request, transcript: string, apiKey: string, audio: { audioPath?: string | undefined; audioName?: string | undefined; leadId?: string; ownerId?: string | null } = {}) {
   const jsonError = (message: string, status = 502) =>
     Response.json({ error: message }, { status });
-  let response: Response;
-  try {
-    response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: PROMPT }] },
-        contents: [{ role: "user", parts: [{ text: `Transcript:\n<transcript>\n${transcript}\n</transcript>` }] }],
-        generationConfig: { temperature: 0, responseMimeType: "application/json" },
-      }),
-      signal: request.signal,
-    });
-  } catch (error) {
-    console.error("[analyse] Gemini request failed:", error);
-    return jsonError("Gemini API-ஐ அணுக முடியவில்லை. மீண்டும் முயற்சிக்கவும்.");
+  const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
+  let response: Response | undefined;
+  let lastErrorMessage = "Gemini service is temporarily unavailable.";
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: PROMPT }] },
+            contents: [{ role: "user", parts: [{ text: "Transcript:\\n<transcript>\\n" + transcript + "\\n</transcript>" }] }],
+            generationConfig: { temperature: 0, responseMimeType: "application/json" },
+          }),
+          signal: request.signal,
+        });
+      } catch (error) {
+        if (request.signal.aborted) return jsonError("Request ரத்து செய்யப்பட்டது. மீண்டும் முயற்சிக்கவும்.", 499);
+        console.error("[analyse] Gemini request failed:", error);
+        lastErrorMessage = "Gemini API-ஐ அணுக முடியவில்லை. மீண்டும் முயற்சிக்கவும்.";
+        response = undefined;
+        break;
+      }
+      if (response.ok) break;
+      const body = await response.text();
+      console.error("[analyse] Gemini API error:", model, response.status, body);
+      try { lastErrorMessage = JSON.parse(body)?.error?.message ?? lastErrorMessage; } catch {}
+      if (response.status === 401 || response.status === 403) {
+        return jsonError("Gemini API key தவறாக உள்ளது. Vercel-ல் GEMINI_API_KEY சரிபார்க்கவும்.", response.status);
+      }
+      if (![429, 500, 502, 503, 504].includes(response.status)) {
+        return jsonError(lastErrorMessage, response.status);
+      }
+      if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 800));
+    }
+    if (response?.ok) break;
+    response = undefined;
   }
-  if (!response.ok) {
-    const body = await response.text();
-    console.error("[analyse] Gemini API error:", response.status, body);
-    let message = "உரையாடலை ஆய்வு செய்ய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.";
-    try {
-      const parsed = JSON.parse(body);
-      message = parsed?.error?.message ?? message;
-    } catch {}
-    if (response.status === 401 || response.status === 403) message = "Gemini API key தவறாக உள்ளது. Vercel-ல் GEMINI_API_KEY சரிபார்க்கவும்.";
-    if (response.status === 429) message = "Gemini API quota முடிந்திருக்கலாம். Google AI Studio quota-ஐ சரிபார்க்கவும்.";
-    return jsonError(message, response.status);
+  if (!response?.ok) {
+    return jsonError("Gemini AI-ல் தற்போது அதிக traffic உள்ளது. சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும். விவரம்: " + lastErrorMessage, 503);
   }
-
   let report;
   try {
     const data = await response.json();
