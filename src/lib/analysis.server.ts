@@ -25,67 +25,79 @@ function safeError(error: unknown): { status: number; message: string } {
 }
 
 export async function analyseTranscript(request: Request, transcript: string, apiKey: string, audio: { audioPath?: string | undefined; audioName?: string | undefined; leadId?: string; ownerId?: string | null } = {}) {
-  const gateway = createLovableAiGatewayProvider(apiKey, undefined, { baseURL: "https://ai.gateway.lovable.dev/v1" });
-  let streamError: unknown;
-  const result = streamText({
-    model: gateway("google/gemini-3.8-flash"), output: Output.object({ schema: reportSchema }),
-    system: PROMPT, prompt: `Transcript:\n<transcript>\n${transcript}\n</transcript>`,
-    maxRetries: 0, abortSignal: request.signal,
-    onError: ({ error }) => { streamError = error; },
-  });
-  const iterator = result.textStream[Symbol.asyncIterator]();
-  let first: IteratorResult<string>;
+  const jsonError = (message: string, status = 502) =>
+    Response.json({ error: message }, { status });
+  let response: Response;
   try {
-    first = await iterator.next();
-    if (streamError) throw streamError;
+    response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: PROMPT }] },
+        contents: [{ role: "user", parts: [{ text: `Transcript:\n<transcript>\n${transcript}\n</transcript>` }] }],
+        generationConfig: { temperature: 0, responseMimeType: "application/json" },
+      }),
+      signal: request.signal,
+    });
   } catch (error) {
-    const e = safeError(error);
-    return Response.json({ error: e.message }, { status: e.status });
+    console.error("[analyse] Gemini request failed:", error);
+    return jsonError("Gemini API-ஐ அணுக முடியவில்லை. மீண்டும் முயற்சிக்கவும்.");
   }
+  if (!response.ok) {
+    const body = await response.text();
+    console.error("[analyse] Gemini API error:", response.status, body);
+    let message = "உரையாடலை ஆய்வு செய்ய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.";
+    try {
+      const parsed = JSON.parse(body);
+      message = parsed?.error?.message ?? message;
+    } catch {}
+    if (response.status === 401 || response.status === 403) message = "Gemini API key தவறாக உள்ளது. Vercel-ல் GEMINI_API_KEY சரிபார்க்கவும்.";
+    if (response.status === 429) message = "Gemini API quota முடிந்திருக்கலாம். Google AI Studio quota-ஐ சரிபார்க்கவும்.";
+    return jsonError(message, response.status);
+  }
+
+  let report;
+  try {
+    const data = await response.json();
+    const text = data?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? "").join("").trim();
+    if (!text) throw new Error("Gemini returned an empty response");
+    report = validateReport(JSON.parse(text), transcript);
+  } catch (error) {
+    console.error("[analyse] Could not parse/validate Gemini report:", error);
+    return jsonError("AI report முழுமையாக வரவில்லை. மீண்டும் முயற்சிக்கவும்.");
+  }
+
+  try {
+    const { workspaceAdmin } = await import("./workspace.server");
+    const db = workspaceAdmin();
+    const { data: saved, error } = await db.from("call_reports").insert({
+      transcript,
+      report,
+      audio_path: audio.audioPath ?? null,
+      audio_name: audio.audioName ?? null,
+      owner_id: audio.ownerId ?? null,
+    }).select("id").single();
+    if (error || !saved) throw new Error("Report generate ஆனது, ஆனால் save ஆகவில்லை.");
+    const { telecallerDataRow } = await import("./telecaller-data");
+    const flat = telecallerDataRow(report, { callReportId: saved.id, audioPath: audio.audioPath, audioName: audio.audioName });
+    const { customer_name, customer_phone, telecaller_name, ...reportFields } = flat;
+    const { error: flatError } = audio.leadId
+      ? await db.from("telecaller_data").update({ ...reportFields, processing_status: "analysed" }).eq("id", audio.leadId)
+      : await db.from("telecaller_data").insert(flat);
+    if (flatError) throw new Error("Report save ஆனது, ஆனால் lead status update ஆகவில்லை.");
+  } catch (error) {
+    console.error("[analyse] report save failed:", error);
+    return jsonError(error instanceof Error ? error.message : "Report save ஆகவில்லை.", 500);
+  }
+
   const encoder = new TextEncoder();
-  const body = new ReadableStream({
-    async start(controller) {
-      const send = (event: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-      try {
-        send({ type: "progress" });
-        if (!first.done) {
-          for (;;) { const chunk = await iterator.next(); if (chunk.done) break; send({ type: "progress" }); }
-        }
-        if (streamError) throw streamError;
-        let output: unknown;
-        try { output = await result.output; }
-        catch (error) {
-          if (!NoObjectGeneratedError.isInstance(error)) throw error;
-          try { output = JSON.parse(error.text ?? ""); } catch { throw new Error("The AI returned an incomplete report. Please try again."); }
-        }
-        const report = validateReport(output, transcript);
-        try {
-          const { getDestinationAdmin } = await import("./destination.server");
-          const { telecallerDataRow } = await import("./telecaller-data");
-          const supabaseAdmin = getDestinationAdmin();
-          const { workspaceAdmin } = await import("./workspace.server");
-          const db = workspaceAdmin();
-          const { data: saved, error } = await db.from("call_reports").insert({ transcript, report, audio_path: audio.audioPath ?? null, audio_name: audio.audioName ?? null, owner_id: audio.ownerId ?? null }).select("id").single();
-          if (error) throw new Error("Report generate ஆனது, ஆனால் save ஆகவில்லை. மீண்டும் முயற்சி செய்யுங்கள்.");
-          else {
-            const flat = telecallerDataRow(report, { callReportId: saved.id, audioPath: audio.audioPath, audioName: audio.audioName });
-            // telecaller_data is an external-destination table outside the generated Database types.
-            const { customer_name, customer_phone, telecaller_name, ...reportFields } = flat;
-            const { error: flatError } = audio.leadId
-              ? await db.from("telecaller_data").update({ ...reportFields, processing_status: "analysed" }).eq("id", audio.leadId)
-              : await db.from("telecaller_data").insert(flat);
-            if (flatError) throw new Error("Report save ஆனது, ஆனால் lead status update ஆகவில்லை. மீண்டும் முயற்சி செய்யுங்கள்.");
-          }
-        } catch (saveError) { console.error("[analyse] report save failed:", saveError); throw saveError; }
-        send({ type: "report", report });
-      } catch (error) {
-        const e = safeError(error); send({ type: "error", error: e.message, status: e.status });
-      } finally { controller.close(); }
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "report", report })}\n\n`));
+      controller.close();
     },
-    async cancel() { await iterator.return?.(); },
   });
-  const headers = new Headers({ "Content-Type": "text/event-stream", "Cache-Control": "no-store" });
-  const runId = gateway.getRunId();
-  if (runId) headers.set("X-Lovable-AIG-Run-ID", runId);
-  return new Response(body, { headers });
+  return new Response(body, {
+    headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store" },
+  });
 }
