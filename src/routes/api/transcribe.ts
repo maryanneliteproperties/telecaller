@@ -102,45 +102,53 @@ export const Route = createFileRoute("/api/transcribe")({
         }
 
         const audioPath = lead.audio_path;
-        let res: Response;
-        try {
-          const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
-          res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-goog-api-key": apiKey,
-            },
-            body: JSON.stringify({
-              contents: [{
-                role: "user",
-                parts: [
-                  { text: "Transcribe this call recording verbatim. Preserve the original spoken language, including Tamil, Tanglish, and English. Do not translate, summarize, or add commentary. Return only the words spoken in the recording." },
-                  { inlineData: { mimeType, data: bytes } },
-                ],
-              }],
-              generationConfig: { temperature: 0 },
-            }),
-            signal: request.signal,
-          });
-        } catch (e) {
-          console.error("Gemini transcription fetch failed", e);
-          return jsonError(502, "Could not reach Gemini. Please try again.");
+        const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
+        let res: Response | undefined;
+        let lastErrorMessage = "Gemini service is temporarily unavailable.";
+        for (const model of models) {
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
+              res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+                body: JSON.stringify({
+                  contents: [{
+                    role: "user",
+                    parts: [
+                      { text: "Transcribe this call recording verbatim. Preserve the original spoken language, including Tamil, Tanglish, and English. Do not translate, summarize, or add commentary. Return only the words spoken in the recording." },
+                      { inlineData: { mimeType, data: bytes } },
+                    ],
+                  }],
+                  generationConfig: { temperature: 0 },
+                }),
+                signal: request.signal,
+              });
+            } catch (e) {
+              console.error("Gemini transcription fetch failed", e);
+              if (request.signal.aborted) return jsonError(499, "Request cancelled. Please try again.");
+              lastErrorMessage = "Could not reach Gemini. Please try again.";
+              res = undefined;
+              break;
+            }
+            if (res.ok) break;
+            const errorText = await res.text();
+            console.error("Gemini transcription error", model, res.status, errorText);
+            try { lastErrorMessage = JSON.parse(errorText)?.error?.message ?? lastErrorMessage; } catch {}
+            if (res.status === 401 || res.status === 403 || (res.status === 400 && /API key/i.test(lastErrorMessage))) {
+              return jsonError(res.status, "Gemini API key is invalid or not authorized. Check GEMINI_API_KEY in Vercel.");
+            }
+            if (![429, 500, 502, 503, 504].includes(res.status)) {
+              return jsonError(res.status, friendlyTranscriptionError(lastErrorMessage));
+            }
+            if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 800));
+          }
+          if (res?.ok) break;
+          res = undefined;
         }
-
-        if (!res.ok) {
-          const text = await res.text();
-          console.error("Gemini transcription error", res.status, text);
-          let msg = "Gemini transcription failed.";
-          try {
-            const j = JSON.parse(text);
-            msg = j?.error?.message ?? msg;
-          } catch {}
-          if (res.status === 429) msg = "Gemini API quota/rate limit reached. Check your Google AI Studio quota and try again.";
-          if (res.status === 400 && /API key/i.test(msg)) msg = "Gemini API key is invalid. Add a valid Google AI Studio key as GEMINI_API_KEY in Vercel.";
-          return jsonError(res.status, friendlyTranscriptionError(msg));
+        if (!res?.ok) {
+          return jsonError(503, "Gemini AI-ல் தற்போது அதிக traffic உள்ளது. சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும். விவரம்: " + lastErrorMessage);
         }
-
         let transcript = "";
         try {
           const data = await res.json();
