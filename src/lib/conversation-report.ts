@@ -52,6 +52,10 @@ export function validateReport(value: unknown, transcript: string): Conversation
       if (!item.quote) item.score = null;
     }
   }
+  if (report.checks.length !== 7) throw new Error("The checklist report was incomplete. Please try again.");
+  for (const check of report.checks) {
+    if (!["Yes", "No", "Insufficient evidence"].includes(check.status)) throw new Error("The report contained an invalid checklist status.");
+  }
   for (const finding of report.findings) {
     if (!["explicit", "inferred", "unknown"].includes(finding.kind)) throw new Error("The report contained an invalid evidence label.");
     if (!finding.quote || finding.kind === "unknown") { finding.kind = "unknown"; finding.value = "Unknown"; }
