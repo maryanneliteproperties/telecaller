@@ -1,5 +1,5 @@
 // Shared, browser-safe limits for audio uploads.
-export const MAX_AUDIO_BYTES = 24 * 1024 * 1024; // endpoint caps request at 25 MiB; leave multipart headroom
+export const MAX_AUDIO_BYTES = 14 * 1024 * 1024; // Keep upload limits aligned with the transcription service.
 
 // Every audio recording is accepted. The gate is "is this audio?", not "is this on
 // a short list". This list is the fallback for files whose browser MIME type comes
