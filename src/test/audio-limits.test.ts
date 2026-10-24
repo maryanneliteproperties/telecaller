@@ -47,7 +47,7 @@ describe("Audio upload rules", () => {
   it("still rejects empty and oversized recordings", () => {
     expect(validateAudioFile({ name: "a.amr", size: 0, type: "" })).toBe("This file is empty.");
     expect(validateAudioFile({ name: "a.mp3", size: MAX_AUDIO_BYTES + 1, type: "audio/mpeg" })).toMatch(
-      /larger than 24 MB/,
+      /larger than 14 MB/,
     );
   });
 });
