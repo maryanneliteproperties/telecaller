@@ -66,7 +66,7 @@ export async function analyseTranscript(request: Request, transcript: string, ap
           const { workspaceAdmin } = await import("./workspace.server");
           const db = workspaceAdmin();
           const { data: saved, error } = await db.from("call_reports").insert({ transcript, report, audio_path: audio.audioPath ?? null, audio_name: audio.audioName ?? null, owner_id: audio.ownerId ?? null }).select("id").single();
-          if (error) console.error("[analyse] report save failed:", error.message);
+          if (error) throw new Error("Report generate ஆனது, ஆனால் save ஆகவில்லை. மீண்டும் முயற்சி செய்யுங்கள்.");
           else {
             const flat = telecallerDataRow(report, { callReportId: saved.id, audioPath: audio.audioPath, audioName: audio.audioName });
             // telecaller_data is an external-destination table outside the generated Database types.
@@ -74,9 +74,9 @@ export async function analyseTranscript(request: Request, transcript: string, ap
             const { error: flatError } = audio.leadId
               ? await db.from("telecaller_data").update({ ...reportFields, processing_status: "analysed" }).eq("id", audio.leadId)
               : await db.from("telecaller_data").insert(flat);
-            if (flatError) console.error("[analyse] telecaller_data save failed:", flatError.message);
+            if (flatError) throw new Error("Report save ஆனது, ஆனால் lead status update ஆகவில்லை. மீண்டும் முயற்சி செய்யுங்கள்.");
           }
-        } catch (saveError) { console.error("[analyse] report save failed:", saveError); }
+        } catch (saveError) { console.error("[analyse] report save failed:", saveError); throw saveError; }
         send({ type: "report", report });
       } catch (error) {
         const e = safeError(error); send({ type: "error", error: e.message, status: e.status });
