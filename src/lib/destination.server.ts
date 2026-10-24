@@ -9,7 +9,12 @@ export function getDestinationAdmin() {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: (input, init) => {
       const headers = new Headers(init?.headers);
-      if (headers.get("Authorization") === `Bearer ${key}`) headers.delete("Authorization");
+      // Legacy Supabase service_role keys are JWTs and must remain in Authorization
+      // so PostgREST applies the service_role. New sb_secret_ keys are not JWTs,
+      // so remove the SDK's Bearer header for those keys and authenticate via apikey.
+      if (!key.startsWith("eyJ") && headers.get("Authorization") === `Bearer ${key}`) {
+        headers.delete("Authorization");
+      }
       headers.set("apikey", key);
       return fetch(input, { ...init, headers });
     } },
