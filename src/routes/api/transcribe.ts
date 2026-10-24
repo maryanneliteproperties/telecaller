@@ -10,9 +10,41 @@ function jsonError(status: number, error: string) {
 
 const GEMINI_SUPPORTED_AUDIO_TYPES = new Set([
   "audio/wav", "audio/mp3", "audio/aiff", "audio/aac", "audio/ogg",
-  "audio/flac", "audio/mpeg", "audio/m4a", "audio/l16", "audio/opus",
-  "audio/alaw", "audio/mulaw", "audio/webm",
+  "audio/flac", "audio/mpeg", "audio/m4a", "audio/mp4", "audio/l16",
+  "audio/opus", "audio/alaw", "audio/mulaw", "audio/webm",
 ]);
+
+// Convert decoded audio samples to a standard 16-bit PCM WAV that Gemini accepts.
+function encodePcmWav(channelData: Float32Array[], sampleRate: number): Buffer {
+  if (!channelData.length || !channelData[0]?.length) throw new Error("No audio samples were decoded.");
+  const channels = Math.min(channelData.length, 2);
+  const frames = channelData[0].length;
+  const bytesPerSample = 2;
+  const dataSize = frames * channels * bytesPerSample;
+  const wav = Buffer.alloc(44 + dataSize);
+  wav.write("RIFF", 0);
+  wav.writeUInt32LE(36 + dataSize, 4);
+  wav.write("WAVE", 8);
+  wav.write("fmt ", 12);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20); // PCM
+  wav.writeUInt16LE(channels, 22);
+  wav.writeUInt32LE(sampleRate, 24);
+  wav.writeUInt32LE(sampleRate * channels * bytesPerSample, 28);
+  wav.writeUInt16LE(channels * bytesPerSample, 32);
+  wav.writeUInt16LE(16, 34);
+  wav.write("data", 36);
+  wav.writeUInt32LE(dataSize, 40);
+  let offset = 44;
+  for (let i = 0; i < frames; i++) {
+    for (let ch = 0; ch < channels; ch++) {
+      const sample = Math.max(-1, Math.min(1, channelData[ch]?.[i] ?? 0));
+      wav.writeInt16LE(sample < 0 ? Math.round(sample * 32768) : Math.round(sample * 32767), offset);
+      offset += bytesPerSample;
+    }
+  }
+  return wav;
+}
 
 export const Route = createFileRoute("/api/transcribe")({
   server: {
@@ -42,16 +74,27 @@ export const Route = createFileRoute("/api/transcribe")({
         const { data: stored, error: downloadError } = await workspaceAdmin().storage.from("call-audio").download(lead.audio_path);
         if (downloadError || !stored) return jsonError(500, "சேமித்த audio கிடைக்கல.");
 
-        const file = new File([stored], lead.audio_name, { type: stored.type });
+        let file = new File([stored], lead.audio_name, { type: stored.type });
         const invalid = validateAudioFile(file);
         if (invalid) return jsonError(400, invalid);
         if (file.size > 14 * 1024 * 1024) {
-          return jsonError(413, "Gemini inline audio limit is 14 MB. Please upload a shorter or compressed recording.");
+          return jsonError(413, "Audio file is larger than 14 MB. Please upload a shorter or compressed recording.");
         }
 
-        const mimeType = transcriptionAudioType(file);
+        let mimeType = transcriptionAudioType(file);
+        // If Gemini doesn't accept the source format (for example AMR, 3GP, WMA,
+        // CAF or another phone-recorder format), decode it and repackage it as WAV.
         if (!GEMINI_SUPPORTED_AUDIO_TYPES.has(mimeType)) {
-          return jsonError(400, friendlyTranscriptionError(`Unsupported file format: ${file.name.split(".").pop() ?? mimeType}`));
+          try {
+            const { default: decode } = await import("@audio/decode");
+            const decoded = await decode(new Uint8Array(await file.arrayBuffer()));
+            const wav = encodePcmWav(decoded.channelData, decoded.sampleRate);
+            file = new File([new Uint8Array(wav)], `${file.name.replace(/\\.[^.]+$/, "") || "recording"}.wav`, { type: "audio/wav" });
+            mimeType = "audio/wav";
+          } catch (conversionError) {
+            console.error("Audio conversion failed", file.name, conversionError);
+            return jsonError(400, `இந்த audio format-ஐ தானாக convert செய்ய முடியவில்லை (${file.name.split(".").pop() ?? "unknown"}). MP3 அல்லது WAV file upload செய்து முயற்சிக்கவும்.`);
+          }
         }
 
         const audioPath = lead.audio_path;
