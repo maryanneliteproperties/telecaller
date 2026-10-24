@@ -82,18 +82,22 @@ export const Route = createFileRoute("/api/transcribe")({
         }
 
         let mimeType = transcriptionAudioType(file);
-        // If Gemini doesn't accept the source format (for example AMR, 3GP, WMA,
-        // CAF or another phone-recorder format), decode it and repackage it as WAV.
+        // AMR is common in phone-call recordings but isn't accepted by Gemini.
+        // Decode it with the already-installed AMR decoder and repackage as WAV.
         if (!GEMINI_SUPPORTED_AUDIO_TYPES.has(mimeType)) {
+          const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+          if (extension !== "amr" && extension !== "awb") {
+            return jsonError(400, friendlyTranscriptionError(`Unsupported file format: ${extension || mimeType}`));
+          }
           try {
-            const { default: decode } = await import("@audio/decode");
-            const decoded = await decode(new Uint8Array(await file.arrayBuffer()));
+            const { default: decodeAmr } = await import("@audio/decode-amr");
+            const decoded = await decodeAmr(new Uint8Array(await file.arrayBuffer()));
             const wav = encodePcmWav(decoded.channelData, decoded.sampleRate);
             file = new File([new Uint8Array(wav)], `${file.name.replace(/\\.[^.]+$/, "") || "recording"}.wav`, { type: "audio/wav" });
             mimeType = "audio/wav";
           } catch (conversionError) {
-            console.error("Audio conversion failed", file.name, conversionError);
-            return jsonError(400, `இந்த audio format-ஐ தானாக convert செய்ய முடியவில்லை (${file.name.split(".").pop() ?? "unknown"}). MP3 அல்லது WAV file upload செய்து முயற்சிக்கவும்.`);
+            console.error("AMR to WAV conversion failed", file.name, conversionError);
+            return jsonError(400, "இந்த AMR recording-ஐ தானாக convert செய்ய முடியவில்லை. MP3 அல்லது WAV file upload செய்து முயற்சிக்கவும்.");
           }
         }
 
