@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createParser } from "eventsource-parser";
 import { Copy, Download, Loader2, Sparkles, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { DetailedReport } from "@/components/detailed-report";
 import { DEFAULT_INTENT_WEIGHTS, MISSING_REPORT_INFO, compactReport, validateReport, reportText, type ConversationReport } from "@/lib/conversation-report";
 import { destinationHeaders } from "@/lib/workspace-attacher";
 
-export function ConversationReports({ transcript, filename, audioPath, leadId }: { transcript: string; filename: string; audioPath?: string; leadId?: string }) {
+export function ConversationReports({ transcript, filename, audioPath, leadId, autoStart = false }: { transcript: string; filename: string; audioPath?: string; leadId?: string; autoStart?: boolean }) {
   const [report, setReport] = useState<ConversationReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -16,6 +16,7 @@ export function ConversationReports({ transcript, filename, audioPath, leadId }:
   const [format, setFormat] = useState<"summary" | "detailed">("summary");
   const weights = DEFAULT_INTENT_WEIGHTS;
   const busy = useRef(false);
+  useEffect(() => { if (autoStart) void analyse(); }, [autoStart]);
   async function analyse() {
     if (busy.current || report) return;
     busy.current = true; setLoading(true); setError("");

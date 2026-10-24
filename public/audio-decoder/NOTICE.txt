@@ -1,0 +1,6 @@
+FFmpeg WebAssembly core 0.12.10, single-thread build.
+License: GPL-2.0-or-later. Source and build instructions:
+https://github.com/ffmpegwasm/ffmpeg.wasm
+https://github.com/ffmpegwasm/ffmpeg.wasm/tree/main/packages/core
+ffmpeg-core.bin is gzip-compressed WebAssembly, decompressed by the browser worker.
+AMR-NB/WB playback uses @audio/decode-amr (Apache-2.0), bundled by Vite.

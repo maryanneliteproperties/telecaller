@@ -1,3 +1,4 @@
+import { CallAudioPlayer } from "@/components/call-audio-player";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase, getDestinationClient } from "@/lib/destination-client";
@@ -29,10 +30,10 @@ function ReportsPage() {
   const { data: rows } = useSuspenseQuery(reportsOptions);
 
   return (
-    <main lang="ta" className="min-h-screen px-4 py-12">
-      <div className="mx-auto max-w-3xl space-y-6">
+    <main lang="ta" className="px-4 py-10 sm:px-10">
+      <div className="mx-auto max-w-5xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-display text-4xl">சேமித்த Call Reports</h1>
+          <h1 className="font-display text-3xl">சேமித்த Call Reports</h1>
           <div className="flex gap-2">
             <Button asChild variant="outline"><Link to="/">புதிய call</Link></Button>
           </div>
@@ -41,7 +42,7 @@ function ReportsPage() {
         {rows?.map((r) => (
           <article key={r.id} className="space-y-3 rounded-lg border bg-card p-4">
             <p className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleString("ta-IN")} · {r.audio_name ?? "call"}</p>
-            {r.audioUrl ? <audio controls src={r.audioUrl} className="w-full" /> : <p className="text-sm text-muted-foreground">Audio சேமிக்கப்படவில்லை</p>}
+            {r.audioUrl ? <CallAudioPlayer src={r.audioUrl} name={r.audio_name ?? "call"} /> : <p className="text-sm text-muted-foreground">Audio சேமிக்கப்படவில்லை</p>}
             <details><summary className="cursor-pointer font-medium">Transcript</summary><p className="mt-2 whitespace-pre-wrap text-sm">{r.transcript}</p></details>
             <details open><summary className="cursor-pointer font-medium">சுருக்கம்</summary>
               <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{safeSummary(r.report)}</pre>

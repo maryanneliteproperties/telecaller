@@ -1,10 +1,14 @@
+import { CallAudioPlayer } from "@/components/call-audio-player";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { listLeads } from "@/lib/workspace.functions";
+import { useMemo, useState } from "react";
+import { getLeadReport, listLeads } from "@/lib/workspace.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { validateReport, type ConversationReport } from "@/lib/conversation-report";
+import { downloadReportPdf } from "@/lib/report-pdf";
+import { Download, Loader2, Plus } from "lucide-react";
 
 const leadsOptions = queryOptions({ queryKey: ["workspace", "leads"], queryFn: () => listLeads() });
 export const Route = createFileRoute("/_authenticated/leads")({
@@ -12,11 +16,39 @@ export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({ meta: [{ title: "Leads · AI Call Workspace" }, { name: "description", content: "Customer details, recorded call audio and report status." }, { property: "og:title", content: "Leads · AI Call Workspace" }, { property: "og:description", content: "Your saved customer calls and follow-up reports." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: LeadsPage,
 });
+function scoreBadge(score: number | null) {
+  if (score === null) return <Badge variant="outline" className="text-muted-foreground">AI Pending</Badge>;
+  const tone = score >= 70 ? "bg-success text-success-foreground" : score >= 40 ? "bg-warning text-warning-foreground" : "bg-destructive text-destructive-foreground";
+  return <Badge className={tone}>{score}/100</Badge>;
+}
 function LeadsPage() {
   const { data } = useSuspenseQuery(leadsOptions), [search, setSearch] = useState("");
-  const rows = data.filter(row => `${row.customer_name ?? ""} ${row.customer_phone ?? ""} ${row.audio_name ?? ""}`.toLowerCase().includes(search.toLowerCase()));
-  return <main className="px-4 py-10 sm:px-10"><div className="flex items-center justify-between gap-4"><h1 className="font-display text-3xl">Leads</h1><Button asChild><Link to="/"><Plus />New Lead</Link></Button></div><Input aria-label="Search leads" placeholder="Search customer name or phone" className="my-7 max-w-sm" value={search} onChange={e => setSearch(e.target.value)} />
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState("");
+  async function downloadReport(row: { id: string; customer_name: string | null; audio_name: string | null }) {
+    setDownloading(row.id); setDownloadError("");
+    try {
+      const { report, transcript, audioName, createdAt } = await getLeadReport({ data: { id: row.id } });
+      const validated = validateReport(report, transcript) as ConversationReport;
+      await downloadReportPdf(validated, row.customer_name ?? audioName ?? "call", createdAt ?? undefined);
+    } catch (e) { setDownloadError(e instanceof Error ? e.message : "Report download ஆகல."); }
+    finally { setDownloading(null); }
+  }
+  const rows = useMemo(() => data.filter(row => `${row.customer_name ?? ""} ${row.customer_phone ?? ""} ${row.audio_name ?? ""}`.toLowerCase().includes(search.toLowerCase())), [data, search]);
+  const stats = useMemo(() => {
+    const analysed = data.filter(row => row.overall_score !== null);
+    return { total: data.length, pending: data.length - analysed.length, average: analysed.length ? Math.round(analysed.reduce((sum, row) => sum + (row.overall_score ?? 0), 0) / analysed.length) : null };
+  }, [data]);
+  return <main className="px-4 py-10 sm:px-10">
+    <div className="flex items-center justify-between gap-4"><div><h1 className="font-display text-3xl">Leads</h1><p className="mt-1 text-sm text-muted-foreground">{stats.total} leads saved</p></div><Button asChild><Link to="/"><Plus />New Lead</Link></Button></div>
+    <div className="mt-8 grid gap-4 sm:grid-cols-3" aria-label="Lead summary">
+      <div className="rounded-lg border bg-card p-5"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Leads</p><p className="mt-2 text-2xl font-semibold">{stats.total}</p></div>
+      <div className="rounded-lg border bg-card p-5"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI Pending</p><p className="mt-2 text-2xl font-semibold">{stats.pending}</p></div>
+      <div className="rounded-lg border bg-card p-5"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Average Score</p><p className="mt-2 text-2xl font-semibold">{stats.average === null ? "—" : `${stats.average}/100`}</p></div>
+    </div>
+    <Input aria-label="Search leads" placeholder="Search customer name or phone" className="my-7 max-w-sm" value={search} onChange={e => setSearch(e.target.value)} />
+    {downloadError && <p role="alert" className="mb-4 text-sm text-destructive">{downloadError}</p>}
     {rows.length === 0 && <p className="border-y py-10 text-muted-foreground">{search ? "No matching leads." : "இன்னும் lead சமர்ப்பிக்கப்படல."}</p>}
-    <div className="divide-y">{rows.map(row => <article key={row.id} className="grid gap-4 py-6 lg:grid-cols-[1fr_1fr_auto]"><div className="min-w-0"><Link to="/leads/$id" params={{ id: row.id }} className="font-medium text-primary">{row.customer_name ?? "Customer தகவல் இல்லை"}</Link><p className="mt-1 text-sm">{row.customer_phone ?? "Phone தகவல் இல்லை"}</p><p className="mt-2 text-xs text-muted-foreground">{row.telecaller_name ?? "—"} · {new Date(row.created_at).toLocaleString()}</p></div><div className="min-w-0"><p className="mb-2 truncate text-sm text-muted-foreground">{row.audio_name ?? "Audio இல்லை"}</p>{row.audioUrl && <audio controls preload="none" src={row.audioUrl} className="w-full min-w-0" />}</div><div className="flex items-center gap-4 text-sm"><span>{row.overall_score === null ? "AI Pending" : `${row.overall_score}/100`}</span><Button asChild variant="outline" size="icon" title="Open lead"><Link to="/leads/$id" params={{ id: row.id }} aria-label="Open lead"><ArrowUpRight /></Link></Button></div></article>)}</div>
+    <div className="overflow-x-auto"><table className="min-w-[760px] w-full text-sm"><thead><tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground"><th className="py-3 pr-4 font-medium">Created Date</th><th className="py-3 pr-4 font-medium">Customer Name</th><th className="py-3 pr-4 font-medium">Phone Number</th><th className="py-3 pr-4 font-medium">Audio</th><th className="py-3 pr-4 font-medium">Overall Score</th><th className="py-3 font-medium"><span className="sr-only">Report</span></th></tr></thead><tbody className="divide-y">{rows.map(row => <tr key={row.id} className="align-top hover:bg-muted/40"><td className="py-4 pr-4 whitespace-nowrap text-muted-foreground">{new Date(row.created_at).toLocaleString()}</td><td className="py-4 pr-4 min-w-0"><Link to="/leads/$id" params={{ id: row.id }} className="font-medium text-primary">{row.customer_name ?? "Customer தகவல் இல்லை"}</Link><p className="mt-1 text-xs text-muted-foreground">{row.telecaller_name ?? "—"}</p></td><td className="py-4 pr-4 whitespace-nowrap">{row.customer_phone ?? "—"}</td><td className="py-4 pr-4 min-w-0"><p className="mb-1 max-w-[24rem] truncate text-muted-foreground">{row.audio_name ?? "Audio இல்லை"}</p>{row.audioUrl && <CallAudioPlayer src={row.audioUrl} name={row.audio_name ?? "call"} className="w-full max-w-[22rem] min-w-0" />}</td><td className="py-4 pr-4">{scoreBadge(row.overall_score)}</td><td className="py-4"><Button variant="outline" size="icon" title="Download full report" aria-label="Download full report" disabled={row.overall_score === null || downloading === row.id} onClick={() => void downloadReport(row)}>{downloading === row.id ? <Loader2 className="animate-spin" /> : <Download />}</Button></td></tr>)}</tbody></table></div>
   </main>;
 }

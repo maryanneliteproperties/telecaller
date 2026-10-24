@@ -16,7 +16,11 @@ export const loginAdmin = createServerFn({ method: "POST" }).inputValidator((v: 
   const token = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(v => v.toString(16).padStart(2, "0")).join("");
   const { error } = await workspaceAdmin().from("workspace_admin_sessions").insert({ token_hash: await digest(token), expires_at: new Date(Date.now() + 8 * 3600000).toISOString() });
   if (error) throw new Error("Admin session உருவாக்க முடியல.");
-  setCookie("workspace_admin", token, { httpOnly: true, secure: new URL(getRequest().url).protocol === "https:", sameSite: "strict", path: "/", maxAge: 8 * 3600 });
+  // The preview runs inside an iframe, where SameSite=Strict cookies are
+  // blocked; cross-site embeds need SameSite=None; Secure (partitioned).
+  const request = getRequest();
+  const https = new URL(request.url).protocol === "https:" || request.headers.get("x-forwarded-proto")?.includes("https") === true;
+  setCookie("workspace_admin", token, { httpOnly: true, secure: https, sameSite: https ? "none" : "lax", partitioned: https, path: "/", maxAge: 8 * 3600 });
   return { ok: true };
 });
 export const loginEmployee = createServerFn({ method: "POST" }).inputValidator((v: unknown) => employeeLoginSchema.parse(v)).handler(async ({ data }) => {
@@ -101,6 +105,14 @@ export const getLead = createServerFn({ method: "GET" }).inputValidator((v: unkn
   const row = await readLead(data.id, await requireWorkspace());
   const { data: signed } = await workspaceAdmin().storage.from("call-audio").createSignedUrl(row.audio_path, 900);
   return { ...row, audioUrl: signed?.signedUrl ?? null };
+});
+export const getLeadReport = createServerFn({ method: "GET" }).inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v)).handler(async ({ data }) => {
+  const { requireWorkspace, readLead, workspaceAdmin } = await import("./workspace.server");
+  const lead = await readLead(data.id, await requireWorkspace());
+  if (!lead.call_report_id) throw new Error("இந்த lead-க்கு இன்னும் report இல்லை.");
+  const { data: row, error } = await workspaceAdmin().from("call_reports").select("report,transcript,audio_name,created_at").eq("id", lead.call_report_id).maybeSingle();
+  if (error || !row?.report) throw new Error("Report-ஐ ஏற்ற முடியல.");
+  return { report: row.report, transcript: row.transcript ?? "", audioName: row.audio_name ?? lead.audio_name ?? "call", createdAt: row.created_at ?? null };
 });
 export const listReports = createServerFn({ method: "GET" }).handler(async () => {
   const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");

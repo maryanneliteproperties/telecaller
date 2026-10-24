@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createParser } from "eventsource-parser";
 import { Upload, FileAudio, Loader2, Copy, Download, X, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { ConversationReports } from "@/components/conversation-reports";
 import { ACCEPT_ATTR, formatBytes, friendlyTranscriptionError, validateAudioFile } from "@/lib/audio-limits";
 import { destinationHeaders } from "@/lib/workspace-attacher";
 
-export function CallTranscription({ leadId, savedAudioName }: { leadId: string; savedAudioName: string }) {
+export function CallTranscription({ leadId, savedAudioName, autoStart = false }: { leadId: string; savedAudioName: string; autoStart?: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -32,7 +32,11 @@ export function CallTranscription({ leadId, savedAudioName }: { leadId: string; 
     setFile(f);
   }
 
+  const started = useRef(false);
+  useEffect(() => { if (autoStart && !started.current) { started.current = true; void transcribe(); } }, [autoStart]);
+
   async function transcribe() {
+    started.current = true;
     setLoading(true);
     setCompleted(false);
     setError(null);
@@ -189,7 +193,7 @@ export function CallTranscription({ leadId, savedAudioName }: { leadId: string; 
             </div>
           </section>
         )}
-        {completed && !loading && <ConversationReports key={transcript} transcript={transcript} filename={savedAudioName} audioPath={audioPath} leadId={leadId} />}
+        {completed && !loading && <ConversationReports key={transcript} transcript={transcript} filename={savedAudioName} audioPath={audioPath} leadId={leadId} autoStart={autoStart} />}
       </div>
     </main>
   );
