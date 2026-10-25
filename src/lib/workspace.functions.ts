@@ -60,6 +60,43 @@ export const listEmployees = createServerFn({ method: "GET" }).handler(async () 
   if (error) throw new Error("Employee விவரங்களை ஏற்ற முடியல.");
   return data ?? [];
 });
+export const updateEmployee = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({
+  id: z.string().uuid(),
+  username: employeeSchema.shape.username,
+  email: employeeSchema.shape.email,
+  password: z.string().min(8).max(128).optional(),
+}).parse(v)).handler(async ({ data }) => {
+  const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
+  await requireAdmin();
+  const db = workspaceAdmin();
+  const { data: roles, error: roleReadError } = await db.from("user_roles").select("role").eq("user_id", data.id);
+  if (roleReadError) throw new Error("Employee role-ஐ சரிபார்க்க முடியல.");
+  if (!roles?.some(row => row.role === "employee") || roles.some(row => row.role === "admin")) throw new Error("Employee account மட்டும் edit செய்யலாம்.");
+  const { data: existing, error: existingError } = await db.from("profiles").select("id").eq("id", data.id).maybeSingle();
+  if (existingError || !existing) throw new Error("Employee account கிடைக்கல.");
+  const authUpdate: { email: string; email_confirm: boolean; user_metadata: { username: string }; password?: string } = {
+    email: data.email.trim(),
+    email_confirm: true,
+    user_metadata: { username: data.username.trim().toLowerCase() },
+  };
+  if (data.password) authUpdate.password = data.password;
+  const { error: authError } = await db.auth.admin.updateUserById(data.id, authUpdate);
+  if (authError) throw new Error("Email/password update செய்ய முடியல. Email ஏற்கனவே பயன்படுத்தப்பட்டிருக்கலாம்.");
+  const { error: profileError } = await db.from("profiles").update({ username: data.username.trim().toLowerCase(), email: data.email.trim() }).eq("id", data.id);
+  if (profileError) throw new Error("Login account update ஆனது; profile விவரங்களை update செய்ய முடியல. Admin support தேவை.");
+  return { ok: true };
+});
+export const deleteEmployee = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v)).handler(async ({ data }) => {
+  const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
+  await requireAdmin();
+  const db = workspaceAdmin();
+  const { data: roles, error: roleReadError } = await db.from("user_roles").select("role").eq("user_id", data.id);
+  if (roleReadError) throw new Error("Employee role-ஐ சரிபார்க்க முடியல.");
+  if (!roles?.some(row => row.role === "employee") || roles.some(row => row.role === "admin")) throw new Error("Employee account மட்டும் delete செய்யலாம்.");
+  const { error } = await db.auth.admin.deleteUser(data.id);
+  if (error) throw new Error("Employee account delete செய்ய முடியல.");
+  return { ok: true };
+});
 export const submitLead = createServerFn({ method: "POST" }).inputValidator((v: unknown) => {
   if (!(v instanceof FormData)) throw new Error("Form சரியில்லை.");
   const fields = customerSchema.parse({ customerName: v.get("customerName"), customerPhone: v.get("customerPhone"), submissionKey: v.get("submissionKey") });
