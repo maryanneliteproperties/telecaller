@@ -12,4 +12,6 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Pre-bundle Radix menus with React so first-time imports do not create a second React copy.
+  vite: { optimizeDeps: { include: ["@radix-ui/react-dropdown-menu", "@radix-ui/react-tabs"] } },
 });
