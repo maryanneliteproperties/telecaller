@@ -39,7 +39,7 @@ export async function analyseTranscript(request: Request, transcript: string, ap
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: PROMPT }] },
             contents: [{ role: "user", parts: [{ text: "Transcript:\\n<transcript>\\n" + transcript + "\\n</transcript>" }] }],
-            generationConfig: { temperature: 0, responseMimeType: "application/json" },
+            generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 8192 },
           }),
           signal: request.signal,
         });
@@ -70,12 +70,29 @@ export async function analyseTranscript(request: Request, transcript: string, ap
   let report;
   try {
     const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? "").join("").trim();
-    if (!text) throw new Error("Gemini returned an empty response");
-    report = validateReport(JSON.parse(text), transcript);
+    const candidate = data?.candidates?.[0];
+    const text = candidate?.content?.parts?.map((part: { text?: string }) => part.text ?? "").join("").trim();
+    if (!text) {
+      console.error("[analyse] Empty Gemini response:", JSON.stringify({ finishReason: candidate?.finishReason, promptFeedback: data?.promptFeedback }));
+      if (candidate?.finishReason === "MAX_TOKENS") {
+        return jsonError("AI report நீளமாகி முழுமையடையவில்லை. மீண்டும் முயற்சிக்கவும்; சுருக்கமான report உருவாக்க முயற்சிக்கவும்.", 502);
+      }
+      throw new Error("Gemini returned an empty response");
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch (parseError) {
+      console.error("[analyse] Gemini returned invalid/truncated JSON:", JSON.stringify({ finishReason: candidate?.finishReason, outputLength: text.length, tail: text.slice(-500), parseError: String(parseError) }));
+      if (candidate?.finishReason === "MAX_TOKENS") {
+        return jsonError("AI report நீளமாகி முழுமையடையவில்லை. மீண்டும் முயற்சிக்கவும்; சுருக்கமான report உருவாக்க முயற்சிக்கவும்.", 502);
+      }
+      return jsonError("AI report சரியான வடிவில் வரவில்லை. மீண்டும் முயற்சிக்கவும்.", 502);
+    }
+    report = validateReport(parsed, transcript);
   } catch (error) {
-    console.error("[analyse] Could not parse/validate Gemini report:", error);
-    return jsonError("AI report முழுமையாக வரவில்லை. மீண்டும் முயற்சிக்கவும்.");
+    console.error("[analyse] Report validation failed:", error);
+    return jsonError("AI report-ல் தேவையான மதிப்பெண்கள் அல்லது transcript ஆதாரம் முழுமையாக இல்லை. மீண்டும் முயற்சிக்கவும்.", 502);
   }
 
   try {
