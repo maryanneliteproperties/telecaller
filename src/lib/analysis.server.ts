@@ -31,7 +31,7 @@ export async function analyseTranscript(request: Request, transcript: string, ap
   let response: Response | undefined;
   let lastErrorMessage = "Gemini service is temporarily unavailable.";
   for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 1; attempt++) {
       try {
         response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
           method: "POST",
@@ -60,7 +60,6 @@ export async function analyseTranscript(request: Request, transcript: string, ap
       if (![429, 500, 502, 503, 504].includes(response.status)) {
         return jsonError(lastErrorMessage, response.status);
       }
-      if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 800));
     }
     if (response?.ok) break;
     response = undefined;
