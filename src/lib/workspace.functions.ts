@@ -10,9 +10,7 @@ export const getWorkspaceIdentity = createServerFn({ method: "GET" }).handler(as
 });
 export const loginAdmin = createServerFn({ method: "POST" }).inputValidator((v: unknown) => adminLoginSchema.parse(v)).handler(async ({ data }) => {
   const { consumeAttempt, digest, workspaceAdmin } = await import("./workspace.server");
-  const request = getRequest();
-  const clientIp = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  await consumeAttempt(`admin-pin:${clientIp}`);
+  await consumeAttempt("admin-pin");
   const pin = process.env["ADMIN_LOGIN_PIN"];
   if (!pin || await digest(data.pin) !== await digest(pin)) throw new Error("PIN சரியில்லை.");
   const token = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(v => v.toString(16).padStart(2, "0")).join("");
@@ -20,6 +18,7 @@ export const loginAdmin = createServerFn({ method: "POST" }).inputValidator((v: 
   if (error) throw new Error("Admin session உருவாக்க முடியல.");
   // The preview runs inside an iframe, where SameSite=Strict cookies are
   // blocked; cross-site embeds need SameSite=None; Secure (partitioned).
+  const request = getRequest();
   const https = new URL(request.url).protocol === "https:" || request.headers.get("x-forwarded-proto")?.includes("https") === true;
   setCookie("workspace_admin", token, { httpOnly: true, secure: https, sameSite: https ? "none" : "lax", partitioned: https, path: "/", maxAge: 8 * 3600 });
   return { ok: true };
@@ -114,6 +113,25 @@ export const getLeadReport = createServerFn({ method: "GET" }).inputValidator((v
   const { data: row, error } = await workspaceAdmin().from("call_reports").select("report,transcript,audio_name,created_at").eq("id", lead.call_report_id).maybeSingle();
   if (error || !row?.report) throw new Error("Report-ஐ ஏற்ற முடியல.");
   return { report: row.report, transcript: row.transcript ?? "", audioName: row.audio_name ?? lead.audio_name ?? "call", createdAt: row.created_at ?? null };
+});
+const SUMMARY_SECTIONS = [["introduction", "அறிமுகம் மற்றும் பேச்சுத்திறன்"], ["discovery", "வாடிக்கையாளர் தேவையை அறிதல்"], ["listening", "கவனமாகக் கேட்டல்"], ["explanation", "திட்டத்தை விளக்கும் திறன்"], ["objections", "எதிர்ப்புகளைக் கையாளுதல்"], ["closing", "Closing மற்றும் அடுத்த நடவடிக்கை"]] as const;
+export const getLeadSummary = createServerFn({ method: "GET" }).inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v)).handler(async ({ data }) => {
+  const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
+  const identity = await requireWorkspace();
+  const cols = ["owner_id", "coaching_1", "coaching_2", "coaching_3", ...SUMMARY_SECTIONS.flatMap(([p]) => [`${p}_strength`, `${p}_missed`, `${p}_improvement`, `${p}_better_wording`])].join(",");
+  const { data: row, error } = await workspaceAdmin().from("telecaller_data").select(cols).eq("id", data.id).maybeSingle();
+  if (error || !row) throw new Error("Summary ஏற்ற முடியல.");
+  const r = row as unknown as Record<string, string | null>;
+  if (identity.role !== "admin" && r["owner_id"] !== identity.id) throw new Error("இந்த lead-க்கு அனுமதி இல்லை.");
+  const pick = (suffix: string) => SUMMARY_SECTIONS.map(([p, label]) => ({ label, text: r[`${p}_${suffix}`] ?? null })).filter(x => x.text);
+  return {
+    good: pick("strength"),
+    mistakes: pick("missed"),
+    suggestions: [
+      ...SUMMARY_SECTIONS.map(([p, label]) => ({ label, text: [r[`${p}_improvement`], r[`${p}_better_wording`] ? `சிறந்த வார்த்தை: ${r[`${p}_better_wording`]}` : null].filter(Boolean).join("\n") || null })).filter(x => x.text),
+      ...[r["coaching_1"], r["coaching_2"], r["coaching_3"]].filter(Boolean).map((text, i) => ({ label: `பயிற்சி பரிந்துரை ${i + 1}`, text })),
+    ],
+  };
 });
 export const listReports = createServerFn({ method: "GET" }).handler(async () => {
   const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
