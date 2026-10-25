@@ -7,7 +7,7 @@ import { employeeSchema } from "@/lib/workspace-schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Pencil, Trash2, X } from "lucide-react";
+import { UserPlus, Pencil, Trash2, X, Eye, EyeOff } from "lucide-react";
 
 const employeesOptions = queryOptions({ queryKey: ["workspace", "employees"], queryFn: () => listEmployees() });
 export const Route = createFileRoute("/_authenticated/employees")({
@@ -20,7 +20,7 @@ function EmployeesPage() {
   const { data } = useSuspenseQuery(employeesOptions), create = useServerFn(createEmployee), update = useServerFn(updateEmployee), remove = useServerFn(deleteEmployee), queryClient = useQueryClient();
   const [username, setUsername] = useState(""), [email, setEmail] = useState(""), [password, setPassword] = useState(""), [busy, setBusy] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
   const [editing, setEditing] = useState<{id:string;username:string;email:string}|null>(null);
-  const [editUsername, setEditUsername] = useState(""), [editEmail, setEditEmail] = useState(""), [editPassword, setEditPassword] = useState("");
+  const [editUsername, setEditUsername] = useState(""), [editEmail, setEditEmail] = useState(""), [editPassword, setEditPassword] = useState(""), [showEditPassword, setShowEditPassword] = useState(false);
   async function submit(e: FormEvent) {
     e.preventDefault(); if (busy) return; setError(""); setMessage("");
     const parsed = employeeSchema.safeParse({ username, email, password });
@@ -31,7 +31,7 @@ function EmployeesPage() {
     finally { setBusy(false); }
   }
   function openEdit(row: {id:string;username:string;email:string}) {
-    setEditing(row); setEditUsername(row.username); setEditEmail(row.email); setEditPassword(""); setError(""); setMessage("");
+    setEditing(row); setEditUsername(row.username); setEditEmail(row.email); setEditPassword(""); setShowEditPassword(false); setError(""); setMessage("");
   }
   async function saveEdit(e: FormEvent) {
     e.preventDefault(); if (!editing || busy) return;
@@ -81,7 +81,7 @@ function EmployeesPage() {
         <form onSubmit={saveEdit} className="space-y-4">
           <div className="space-y-2"><Label htmlFor="edit-employee-username">Username</Label><Input id="edit-employee-username" required maxLength={40} value={editUsername} onChange={e => setEditUsername(e.target.value)} /></div>
           <div className="space-y-2"><Label htmlFor="edit-employee-email">Email</Label><Input id="edit-employee-email" type="email" required maxLength={255} value={editEmail} onChange={e => setEditEmail(e.target.value)} /></div>
-          <div className="space-y-2"><Label htmlFor="edit-employee-password">New Password (optional)</Label><Input id="edit-employee-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="மாற்ற வேண்டுமென்றால் மட்டும் உள்ளிடவும்" /><p className="text-xs text-muted-foreground">Password மாற்ற வேண்டாம் என்றால் காலியாக விடவும். பழைய password காட்டப்படாது.</p></div>
+          <div className="space-y-2"><Label htmlFor="edit-employee-password">New Password (optional)</Label><div className="relative"><Input id="edit-employee-password" type={showEditPassword ? "text" : "password"} autoComplete="new-password" minLength={8} maxLength={128} value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="மாற்ற வேண்டுமென்றால் மட்டும் உள்ளிடவும்" className="pr-11" /><button type="button" onClick={() => setShowEditPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground" aria-label={showEditPassword ? "Hide password" : "Show password"} aria-pressed={showEditPassword}>{showEditPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div><p className="text-xs text-muted-foreground">Password மாற்ற வேண்டாம் என்றால் காலியாக விடவும். பழைய password காட்டப்படாது.</p></div>
           <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" disabled={busy} onClick={() => setEditing(null)}>Cancel</Button><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save Changes"}</Button></div>
         </form>
       </section>
