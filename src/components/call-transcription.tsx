@@ -189,7 +189,7 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
               </div>
             </div>
             <div className="mt-4 max-h-[60vh] overflow-auto whitespace-pre-wrap leading-relaxed">
-              {transcript || <span className="text-muted-foreground">Listening to the recording…</span>}
+              {transcript || <span className="text-muted-foreground">Audio-வை text-ஆக மாற்றுகிறது… நீளமான recording-க்கு நேரம் ஆகலாம்.</span>}
             </div>
           </section>
         )}
