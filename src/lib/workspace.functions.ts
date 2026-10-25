@@ -74,6 +74,9 @@ export const updateEmployee = createServerFn({ method: "POST" }).inputValidator(
   if (!roles?.some(row => row.role === "employee") || roles.some(row => row.role === "admin")) throw new Error("Employee account மட்டும் edit செய்யலாம்.");
   const { data: existing, error: existingError } = await db.from("profiles").select("id").eq("id", data.id).maybeSingle();
   if (existingError || !existing) throw new Error("Employee account கிடைக்கல.");
+  const { data: usernameMatch, error: usernameCheckError } = await db.from("profiles").select("id").eq("username", data.username.trim().toLowerCase()).neq("id", data.id).maybeSingle();
+  if (usernameCheckError) throw new Error("Username-ஐ சரிபார்க்க முடியல.");
+  if (usernameMatch) throw new Error("இந்த username ஏற்கனவே பயன்படுத்தப்படுகிறது.");
   const authUpdate: { email: string; email_confirm: boolean; user_metadata: { username: string }; password?: string } = {
     email: data.email.trim(),
     email_confirm: true,
