@@ -53,7 +53,7 @@ export function ConversationReports({ transcript, filename, audioPath, leadId, a
   const scoreText = (score: number | null) => score === null ? MISSING_REPORT_INFO : `${score}/100`;
   return <section className="mt-8 min-w-0 border-t border-border pt-6" aria-label="உரையாடல் அறிக்கைகள்" lang="ta">
     {!report && <Button onClick={analyse} disabled={loading} className="w-full" size="lg">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{loading ? "உரையாடலை ஆய்வு செய்கிறேன்…" : "உரையாடலை ஆய்வு செய்"}</Button>}
-    {loading && <p role="status" className="mt-3 text-sm text-muted-foreground">இரண்டு அறிக்கைகளும் தயாராகிறது…</p>}
+    {loading && <p role="status" className="mt-3 text-sm text-muted-foreground">Transcript-ஐ ஆய்வு செய்து score, buyer intent, அடுத்த call report தயாரிக்கிறது…</p>}
     {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
     {summary && <>
       <section className="mb-6" aria-label="மொத்த மதிப்பெண் சுருக்கம்">
