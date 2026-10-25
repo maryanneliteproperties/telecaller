@@ -106,7 +106,7 @@ export const Route = createFileRoute("/api/transcribe")({
         let res: Response | undefined;
         let lastErrorMessage = "Gemini service is temporarily unavailable.";
         for (const model of models) {
-          for (let attempt = 0; attempt < 2; attempt++) {
+          for (let attempt = 0; attempt < 1; attempt++) {
             try {
               const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
               res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
@@ -141,7 +141,6 @@ export const Route = createFileRoute("/api/transcribe")({
             if (![429, 500, 502, 503, 504].includes(res.status)) {
               return jsonError(res.status, friendlyTranscriptionError(lastErrorMessage));
             }
-            if (attempt === 0) await new Promise(resolve => setTimeout(resolve, 800));
           }
           if (res?.ok) break;
           res = undefined;
