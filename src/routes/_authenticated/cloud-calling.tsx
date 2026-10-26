@@ -39,7 +39,7 @@ const startCloudCall = createServerFn({ method: "POST" })
 
     const from = normalizePhone(data.agentPhone, "Agent");
     const to = normalizePhone(data.customerPhone, "Customer");
-    const host = accountSid.toLowerCase().endsWith("m") ? "api.in.exotel.com" : "api.exotel.com";
+    const host = "api.exotel.com"; // my.exotel.com accounts use the Singapore API cluster.
     const endpoint = `https://${host}/v1/Accounts/${encodeURIComponent(accountSid)}/Calls/connect.json`;
     const body = new URLSearchParams({ From: from, To: to, CallerId: callerId, CallType: "trans" });
     const response = await fetch(endpoint, {
