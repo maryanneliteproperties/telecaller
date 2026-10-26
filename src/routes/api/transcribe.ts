@@ -93,7 +93,7 @@ export const Route = createFileRoute("/api/transcribe")({
             const { default: decodeAmr } = await import("@audio/decode-amr");
             const decoded = await decodeAmr(new Uint8Array(await file.arrayBuffer()));
             const wav = encodePcmWav(decoded.channelData, decoded.sampleRate);
-            file = new File([new Uint8Array(wav)], `${file.name.replace(/\\.[^.]+$/, "") || "recording"}.wav`, { type: "audio/wav" });
+            file = new File([new Uint8Array(wav)], `${file.name.replace(/\.[^.]+$/, "") || "recording"}.wav`, { type: "audio/wav" });
             mimeType = "audio/wav";
           } catch (conversionError) {
             console.error("AMR to WAV conversion failed", file.name, conversionError);
@@ -138,7 +138,10 @@ export const Route = createFileRoute("/api/transcribe")({
             if (res.status === 401 || res.status === 403 || (res.status === 400 && /API key/i.test(lastErrorMessage))) {
               return jsonError(res.status, "Gemini API key is invalid or not authorized. Check GEMINI_API_KEY in Vercel.");
             }
-            if (![429, 500, 502, 503, 504].includes(res.status)) {
+            if (res.status === 429) {
+              return jsonError(503, "Gemini API-ல் request limit / அதிக traffic உள்ளது. சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும்.");
+            }
+            if (![500, 502, 503, 504].includes(res.status)) {
               return jsonError(res.status, friendlyTranscriptionError(lastErrorMessage));
             }
           }
