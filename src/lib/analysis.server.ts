@@ -41,7 +41,7 @@ export async function analyseTranscript(request: Request, transcript: string, ap
             contents: [{ role: "user", parts: [{ text: "Transcript:\\n<transcript>\\n" + transcript + "\\n</transcript>" }] }],
             generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 16384 },
           }),
-          signal: request.signal,
+          signal: AbortSignal.any([request.signal, AbortSignal.timeout(45000)]),
         });
       } catch (error) {
         if (request.signal.aborted) return jsonError("Request ரத்து செய்யப்பட்டது. மீண்டும் முயற்சிக்கவும்.", 499);
