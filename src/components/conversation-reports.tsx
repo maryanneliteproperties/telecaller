@@ -22,7 +22,7 @@ export function ConversationReports({ transcript, filename, audioPath, leadId, a
     busy.current = true; setLoading(true); setError("");
     try {
       const response = await fetch("/api/analyse", { method: "POST", headers: { "Content-Type": "application/json", ...await destinationHeaders() }, body: JSON.stringify({ transcript, audioPath: audioPath || undefined, audioName: filename, leadId }) });
-      if (!response.ok) { const j = await response.json(); throw new Error(j.error ?? "Analysis failed."); }
+      if (!response.ok) { const body = await response.text(); let message = ""; try { const parsed = JSON.parse(body); message = parsed?.error ?? parsed?.message ?? ""; } catch { message = body.trim(); } if (!message || message.startsWith("<!DOCTYPE") || message.startsWith("<html")) message = `Server error (${response.status}). Vercel Function Logs-ல் /api/analyse error பார்க்கவும்.`; throw new Error(message.slice(0, 500)); }
       if (!response.body) throw new Error("The report response was empty.");
       let final: unknown, failure = "";
       const parser = createParser({ onEvent(event) {
