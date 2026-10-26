@@ -27,13 +27,13 @@ export const DEFAULT_INTENT_WEIGHTS: IntentWeights = Object.fromEntries(READINES
 const textField = z.preprocess((value) => value == null ? "" : value, z.string());
 const evidence = { quote: z.string().nullable().catch(null), timestamp: z.string().nullable().catch(null) };
 export const reportSchema = z.object({
-  categories: z.array(z.object({ id: z.string(), score: z.number().nullable(), strength: textField, missed: textField, improvement: textField, betterWording: textField, ...evidence })),
-  checks: z.array(z.object({ label: textField, status: textField, detail: textField, ...evidence })),
-  coaching: z.array(textField),
-  findings: z.array(z.object({ label: textField, kind: textField, value: textField, ...evidence })),
-  readiness: z.array(z.object({ id: z.string(), score: z.number().nullable(), rationale: textField, ...evidence })),
-  nextAction: textField, reason: textField, questions: z.array(textField), objectionResponses: z.array(textField),
-  documents: z.array(textField), timing: textField, script: textField, siteInvitation: z.string().nullable(),
+  categories: z.array(z.object({ id: z.string(), score: z.number().nullable().catch(null), strength: textField, missed: textField, improvement: textField, betterWording: textField, ...evidence })).catch([]),
+  checks: z.array(z.object({ label: textField, status: textField, detail: textField, ...evidence })).catch([]),
+  coaching: z.array(textField).catch([]),
+  findings: z.array(z.object({ label: textField, kind: textField, value: textField, ...evidence })).catch([]),
+  readiness: z.array(z.object({ id: z.string(), score: z.number().nullable().catch(null), rationale: textField, ...evidence })).catch([]),
+  nextAction: textField, reason: textField, questions: z.array(textField).catch([]), objectionResponses: z.array(textField).catch([]),
+  documents: z.array(textField).catch([]), timing: textField, script: textField, siteInvitation: z.string().nullable().catch(null),
 });
 export type ConversationReport = z.infer<typeof reportSchema>;
 const normalize = (s: string) => s.normalize("NFKC").replace(/\s+/g, " ").trim();
