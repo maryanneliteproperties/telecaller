@@ -37,7 +37,7 @@ export function transcriptionAudioType(file: { name: string; type?: string }): s
   if (type.startsWith("audio/")) return type;
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   const types: Record<string, string> = {
-    mp3: "audio/mpeg", mp2: "audio/mpeg", m4a: "audio/mp4", mp4: "audio/mp4",
+    mp3: "audio/mpeg", mp2: "audio/mpeg", m4a: "audio/m4a", mp4: "audio/mp4",
     m4b: "audio/mp4", m4v: "audio/mp4", wav: "audio/wav", wave: "audio/wav",
     webm: "audio/webm", ogg: "audio/ogg", oga: "audio/ogg", opus: "audio/ogg",
     flac: "audio/flac", amr: "audio/amr", awb: "audio/amr-wb",
