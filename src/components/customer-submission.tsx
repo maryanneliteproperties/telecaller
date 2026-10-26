@@ -32,7 +32,7 @@ export function CustomerSubmission() {
         setBusyStatus("இந்த audio format-ஐ WAV-ஆக மாற்றுகிறேன்…");
         const wavBlob = await convertAudioForPlayback(await file.arrayBuffer(), file.name);
         if (wavBlob.size > MAX_AUDIO_BYTES) throw new Error("Convert செய்த audio 14 MB-ஐ விட அதிகமாக உள்ளது. குறுகிய recording அல்லது compressed audio பயன்படுத்தவும்.");
-        uploadFile = new File([wavBlob], `${file.name.replace(/\\.[^.]+$/, "") || "recording"}.wav`, { type: "audio/wav" });
+        uploadFile = new File([wavBlob], `${file.name.replace(/\.[^.]+$/, "") || "recording"}.wav`, { type: "audio/wav" });
       }
       setBusyStatus("Audio மற்றும் customer விவரங்களைச் சேமிக்கிறேன்…");
       const form = new FormData(); form.set("customerName", parsed.data.customerName); form.set("customerPhone", parsed.data.customerPhone); form.set("submissionKey", parsed.data.submissionKey); form.set("file", uploadFile);
