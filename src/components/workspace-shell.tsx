@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { Home, Users, FileText, PanelLeft, LogOut, Menu, Headphones, ShieldCheck, ChevronRight, X } from "lucide-react";
+import { Home, Users, FileText, PanelLeft, LogOut, Menu, Headphones, ShieldCheck, ChevronRight, X, PhoneCall } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { logoutWorkspace } from "@/lib/workspace.functions";
@@ -11,6 +11,7 @@ import type { WorkspaceIdentity } from "@/lib/workspace-schema";
 
 const PAGE_TITLES: Array<[prefix: string, title: string]> = [
   ["/employees", "Employees"],
+  ["/cloud-calling", "Cloud Calling"],
   ["/leads", "Leads"],
   ["/reports", "Reports"],
   ["/", "Home"],
@@ -20,7 +21,7 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
   const [collapsed, setCollapsed] = useState(false), [mobileOpen, setMobileOpen] = useState(false);
   const path = useRouterState({ select: r => r.location.pathname });
   const navigate = useNavigate(), queryClient = useQueryClient(), logout = useServerFn(logoutWorkspace);
-  const items = [{ title: "Home", to: "/" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Report", to: "/reports" as const, icon: FileText }];
+  const items = [{ title: "Home", to: "/" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Report", to: "/reports" as const, icon: FileText }, { title: "Cloud Calling", to: "/cloud-calling" as const, icon: PhoneCall }];
   const pageTitle = PAGE_TITLES.find(([prefix]) => path === prefix || (prefix !== "/" && path.startsWith(prefix)))?.[1] ?? "Home";
   async function signOut() {
     await queryClient.cancelQueries(); queryClient.clear();
