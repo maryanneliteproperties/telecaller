@@ -66,7 +66,7 @@ export function validateAudioFile(file: { name: string; size: number; type?: str
       : `"${file.name}" doesn't look like an audio file. Please upload a call recording.`;
   }
   if (file.size === 0) return "This file is empty.";
-  if (file.size > MAX_AUDIO_BYTES) return "File is larger than 24 MB. Please upload a shorter or compressed recording.";
+  if (file.size > MAX_AUDIO_BYTES) return "File is larger than 14 MB. Please upload a shorter or compressed recording.";
   return null;
 }
 
