@@ -102,17 +102,57 @@ export const Route = createFileRoute("/api/transcribe")({
         }
 
         const audioPath = lead.audio_path;
-        // Use Google's dedicated transcription model instead of general-purpose Flash fallbacks.
-        // A single model request avoids spending minutes retrying unavailable/overloaded models.
+        // Upload call audio through Gemini Files API, then run the dedicated transcription model.
+        // This avoids sending a large base64 payload inside generateContent.
         const model = "gemini-3.5-transcribe";
-        let res: Response | undefined;
+        let res: Response;
         let lastErrorMessage = "Gemini transcription service is temporarily unavailable.";
+        const makeSignal = () => request.signal.aborted
+          ? request.signal
+          : AbortSignal.any([request.signal, AbortSignal.timeout(100_000)]);
         try {
-          const bytes = Buffer.from(await file.arrayBuffer()).toString("base64");
-          const timeoutSignal = AbortSignal.timeout(100_000);
-          const signal = request.signal.aborted
-            ? request.signal
-            : AbortSignal.any([request.signal, timeoutSignal]);
+          const bytes = Buffer.from(await file.arrayBuffer());
+          const startUpload = await fetch("https://generativelanguage.googleapis.com/upload/v1beta/files", {
+            method: "POST",
+            headers: {
+              "x-goog-api-key": apiKey,
+              "X-Goog-Upload-Protocol": "resumable",
+              "X-Goog-Upload-Command": "start",
+              "X-Goog-Upload-Header-Content-Length": String(bytes.length),
+              "X-Goog-Upload-Header-Content-Type": mimeType,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ file: { display_name: file.name } }),
+            signal: makeSignal(),
+          });
+          if (!startUpload.ok) {
+            const details = await startUpload.text();
+            console.error("Gemini Files API start upload failed", startUpload.status, details);
+            if (startUpload.status === 401 || startUpload.status === 403) {
+              return jsonError(startUpload.status, "Gemini API key invalid அல்லது authorize ஆகவில்லை. Vercel Production-ல் GEMINI_API_KEY சரிபார்க்கவும்.");
+            }
+            return jsonError(startUpload.status >= 500 ? 503 : startUpload.status, "Gemini Files API-ல் audio upload செய்ய முடியவில்லை.");
+          }
+          const uploadUrl = startUpload.headers.get("x-goog-upload-url");
+          if (!uploadUrl) return jsonError(502, "Gemini Files API upload URL கிடைக்கவில்லை.");
+          const uploaded = await fetch(uploadUrl, {
+            method: "POST",
+            headers: {
+              "Content-Length": String(bytes.length),
+              "X-Goog-Upload-Offset": "0",
+              "X-Goog-Upload-Command": "upload, finalize",
+            },
+            body: bytes,
+            signal: makeSignal(),
+          });
+          if (!uploaded.ok) {
+            const details = await uploaded.text();
+            console.error("Gemini Files API upload failed", uploaded.status, details);
+            return jsonError(uploaded.status >= 500 ? 503 : uploaded.status, "Gemini Files API-க்கு audio அனுப்ப முடியவில்லை.");
+          }
+          const uploadedJson = await uploaded.json();
+          const fileUri = uploadedJson?.file?.uri;
+          if (typeof fileUri !== "string" || !fileUri) return jsonError(502, "Gemini Files API audio URI கிடைக்கவில்லை.");
           res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
@@ -121,19 +161,19 @@ export const Route = createFileRoute("/api/transcribe")({
                 role: "user",
                 parts: [
                   { text: "Transcribe this call recording verbatim. Preserve the original spoken language, including Tamil, Tanglish, and English. Do not translate, summarize, or add commentary. Return only the words spoken in the recording." },
-                  { inlineData: { mimeType, data: bytes } },
+                  { fileData: { fileUri, mimeType } },
                 ],
               }],
               generationConfig: { temperature: 0 },
             }),
-            signal,
+            signal: makeSignal(),
           });
         } catch (e) {
           if (request.signal.aborted) return jsonError(499, "Request cancelled. Please try again.");
           if (e instanceof Error && e.name === "TimeoutError") {
-            return jsonError(504, "Gemini transcription 100 விநாடிகளுக்குள் பதில் தரவில்லை. Recording நீளமாக இருந்தால் சிறிய பகுதிகளாகப் பிரித்து முயற்சிக்கவும்; Vercel Function Logs-ஐயும் சரிபார்க்கவும்.");
+            return jsonError(504, "Gemini transcription 100 விநாடிகளுக்குள் பதில் தரவில்லை. Recording நீளமாக இருந்தால் சிறிய recording-ஆகப் பிரித்து முயற்சிக்கவும்.");
           }
-          console.error("Gemini transcription fetch failed", e);
+          console.error("Gemini transcription request failed", e);
           return jsonError(502, "Gemini transcription service-ஐ அணுக முடியவில்லை. மீண்டும் முயற்சிக்கவும்.");
         }
         if (!res.ok) {
