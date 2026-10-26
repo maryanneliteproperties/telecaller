@@ -57,7 +57,10 @@ export async function analyseTranscript(request: Request, transcript: string, ap
       if (response.status === 401 || response.status === 403) {
         return jsonError("Gemini API key தவறாக உள்ளது. Vercel-ல் GEMINI_API_KEY சரிபார்க்கவும்.", response.status);
       }
-      if (![429, 500, 502, 503, 504].includes(response.status)) {
+      if (response.status === 429) {
+        return jsonError("Gemini API-ல் request limit / அதிக traffic உள்ளது. சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும்.", 503);
+      }
+      if (![500, 502, 503, 504].includes(response.status)) {
         return jsonError(lastErrorMessage, response.status);
       }
     }
