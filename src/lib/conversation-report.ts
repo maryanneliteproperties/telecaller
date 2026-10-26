@@ -37,31 +37,56 @@ export const reportSchema = z.object({
 });
 export type ConversationReport = z.infer<typeof reportSchema>;
 const normalize = (s: string) => s.normalize("NFKC").replace(/\s+/g, " ").trim();
+// Compare evidence after ignoring punctuation/spacing differences, without changing the quote shown to users.
+const normalizeEvidence = (s: string) => normalize(s).toLocaleLowerCase().replace(/[\p{P}\p{S}\s]+/gu, "");
 
 export function validateReport(value: unknown, transcript: string): ConversationReport {
   const report = reportSchema.parse(value);
+
+  // Fill omitted rows conservatively; never invent scores or transcript evidence.
+  report.categories = PERFORMANCE.map((config) => report.categories.find((item) => item.id === config.id) ?? {
+    id: config.id, score: null, strength: "", missed: "", improvement: "", betterWording: "", quote: null, timestamp: null,
+  });
+  report.readiness = READINESS.map((config) => report.readiness.find((item) => item.id === config.id) ?? {
+    id: config.id, score: null, rationale: "Unknown", quote: null, timestamp: null,
+  });
+  report.checks = report.checks.slice(0, 7);
+  while (report.checks.length < 7) {
+    report.checks.push({ label: "தகவல் சரிபார்ப்பு", status: "Insufficient evidence", detail: "Transcript-ல் போதுமான ஆதாரம் இல்லை.", quote: null, timestamp: null });
+  }
+  report.coaching = report.coaching.slice(0, 3);
+  while (report.coaching.length < 3) {
+    report.coaching.push("அடுத்த அழைப்பில் வாடிக்கையாளர் தேவையைத் தெளிவாகக் கேட்டு உறுதிப்படுத்தவும்.");
+  }
+
   for (const list of [report.categories, report.readiness, report.findings, report.checks]) {
     for (const item of list) {
-      if (item.quote && !normalize(transcript).includes(normalize(item.quote))) throw new Error("The report contained a quotation not found in the transcript. Please try again.");
+      if (item.quote && !normalizeEvidence(transcript).includes(normalizeEvidence(item.quote))) {
+        item.quote = null;
+        item.timestamp = null;
+        if ("score" in item) item.score = null;
+        if ("kind" in item) { item.kind = "unknown"; item.value = "Unknown"; }
+      }
       if (item.timestamp && !transcript.includes(item.timestamp)) item.timestamp = null;
     }
   }
-  for (const [items, config] of [[report.categories, PERFORMANCE], [report.readiness, READINESS]] as const) {
-    if (items.length !== config.length || config.some((c) => items.filter((i) => i.id === c.id).length !== 1)) throw new Error("The report was incomplete. Please try again.");
+  for (const items of [report.categories, report.readiness]) {
     for (const item of items) {
-      if (item.score !== null && (!Number.isFinite(item.score) || item.score < 0 || item.score > 100)) throw new Error("The report contained an invalid score.");
+      if (item.score !== null && (!Number.isFinite(item.score) || item.score < 0 || item.score > 100)) item.score = null;
       if (!item.quote) item.score = null;
     }
   }
-  if (report.checks.length !== 7) throw new Error("The checklist report was incomplete. Please try again.");
   for (const check of report.checks) {
-    if (!["Yes", "No", "Insufficient evidence"].includes(check.status)) throw new Error("The report contained an invalid checklist status.");
+    if (!["Yes", "No", "Insufficient evidence"].includes(check.status)) {
+      check.status = "Insufficient evidence";
+      check.quote = null;
+      check.timestamp = null;
+    }
   }
   for (const finding of report.findings) {
-    if (!["explicit", "inferred", "unknown"].includes(finding.kind)) throw new Error("The report contained an invalid evidence label.");
-    if (!finding.quote || finding.kind === "unknown") { finding.kind = "unknown"; finding.value = "Unknown"; }
+    if (!["explicit", "inferred", "unknown"].includes(finding.kind)) { finding.kind = "unknown"; finding.value = "Unknown"; }
+    if (!finding.quote || finding.kind === "unknown") { finding.kind = "unknown"; finding.value = "Unknown"; finding.quote = null; finding.timestamp = null; }
   }
-  if (report.coaching.length !== 3) throw new Error("The coaching report was incomplete. Please try again.");
   return report;
 }
 
