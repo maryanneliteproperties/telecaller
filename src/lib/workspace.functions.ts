@@ -140,6 +140,24 @@ export const listLeads = createServerFn({ method: "GET" }).handler(async () => {
     return { ...row, audioUrl: signed?.data?.signedUrl ?? null };
   }));
 });
+export const deleteLead = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v)).handler(async ({ data }) => {
+  const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
+  await requireAdmin();
+  const db = workspaceAdmin();
+  const { data: lead, error: readError } = await db.from("telecaller_data").select("id,call_report_id,audio_path").eq("id", data.id).maybeSingle();
+  if (readError || !lead) throw new Error("இந்த lead கிடைக்கல அல்லது ஏற்ற முடியல.");
+  if (lead.call_report_id) {
+    const { error: reportError } = await db.from("call_reports").delete().eq("id", lead.call_report_id);
+    if (reportError) throw new Error("Lead report-ஐ delete செய்ய முடியல. Lead மாற்றப்படவில்லை.");
+  }
+  const { error: leadError } = await db.from("telecaller_data").delete().eq("id", data.id);
+  if (leadError) throw new Error("Lead delete செய்ய முடியல.");
+  if (lead.audio_path) {
+    const { error: audioError } = await db.storage.from("call-audio").remove([lead.audio_path]);
+    if (audioError) console.error("[deleteLead] Audio cleanup failed", { code: audioError.name, message: audioError.message });
+  }
+  return { ok: true };
+});
 export const getLead = createServerFn({ method: "GET" }).inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v)).handler(async ({ data }) => {
   const { requireWorkspace, readLead, workspaceAdmin } = await import("./workspace.server");
   const row = await readLead(data.id, await requireWorkspace());
