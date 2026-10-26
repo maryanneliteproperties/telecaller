@@ -153,18 +153,20 @@ export const Route = createFileRoute("/api/transcribe")({
           const uploadedJson = await uploaded.json();
           const fileUri = uploadedJson?.file?.uri;
           if (typeof fileUri !== "string" || !fileUri) return jsonError(502, "Gemini Files API audio URI கிடைக்கவில்லை.");
-          res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
+          // Use Gemini's dedicated Interactions transcription endpoint. It returns
+          // the transcript in output_text instead of a general chat candidate.
+          res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
             body: JSON.stringify({
-              contents: [{
-                role: "user",
-                parts: [
-                  { text: "Transcribe this call recording verbatim. Preserve the original spoken language, including Tamil, Tanglish, and English. Do not translate, summarize, or add commentary. Return only the words spoken in the recording." },
-                  { fileData: { fileUri, mimeType } },
-                ],
-              }],
-              generationConfig: { temperature: 0 },
+              model,
+              input: [{ type: "audio", uri: fileUri, mime_type: mimeType }],
+              generation_config: {
+                transcription_config: {
+                  mode: "verbatim",
+                  language_codes: [],
+                },
+              },
             }),
             signal: makeSignal(),
           });
@@ -191,10 +193,27 @@ export const Route = createFileRoute("/api/transcribe")({
         let transcript = "";
         try {
           const data = await res.json();
-          transcript = data?.candidates?.[0]?.content?.parts
-            ?.map((part: { text?: string }) => part.text ?? "")
-            .join("")
-            .trim() ?? "";
+          // Interactions API's documented transcript field is output_text.
+          // Keep candidate parsing as a fallback for compatible legacy responses.
+          transcript = (typeof data?.output_text === "string" ? data.output_text : "")
+            .trim();
+          if (!transcript) {
+            transcript = data?.candidates?.[0]?.content?.parts
+              ?.map((part: { text?: string }) => part.text ?? "")
+              .join("")
+              .trim() ?? "";
+          }
+          if (!transcript) {
+            console.error("Gemini returned no transcript text", JSON.stringify({
+              status: res.status,
+              statusText: res.statusText,
+              keys: data && typeof data === "object" ? Object.keys(data) : [],
+              output: data?.output,
+              candidates: data?.candidates?.map((candidate: { finishReason?: string; finish_reason?: string }) => ({
+                finishReason: candidate.finishReason ?? candidate.finish_reason,
+              })),
+            }));
+          }
         } catch {
           return jsonError(502, "Gemini returned an unreadable response. Please try again.");
         }
