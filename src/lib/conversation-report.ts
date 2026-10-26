@@ -24,15 +24,16 @@ export const PRIORITY_TAMIL: Record<string, string> = {
 };
 export type IntentWeights = Record<string, number>;
 export const DEFAULT_INTENT_WEIGHTS: IntentWeights = Object.fromEntries(READINESS.map((r) => [r.id, r.weight]));
-const evidence = { quote: z.string().nullable(), timestamp: z.string().nullable() };
+const textField = z.preprocess((value) => value == null ? "" : value, z.string());
+const evidence = { quote: z.string().nullable().catch(null), timestamp: z.string().nullable().catch(null) };
 export const reportSchema = z.object({
-  categories: z.array(z.object({ id: z.string(), score: z.number().nullable(), strength: z.string(), missed: z.string(), improvement: z.string(), betterWording: z.string(), ...evidence })),
-  checks: z.array(z.object({ label: z.string(), status: z.string(), detail: z.string(), ...evidence })),
-  coaching: z.array(z.string()),
-  findings: z.array(z.object({ label: z.string(), kind: z.string(), value: z.string(), ...evidence })),
-  readiness: z.array(z.object({ id: z.string(), score: z.number().nullable(), rationale: z.string(), ...evidence })),
-  nextAction: z.string(), reason: z.string(), questions: z.array(z.string()), objectionResponses: z.array(z.string()),
-  documents: z.array(z.string()), timing: z.string(), script: z.string(), siteInvitation: z.string().nullable(),
+  categories: z.array(z.object({ id: z.string(), score: z.number().nullable(), strength: textField, missed: textField, improvement: textField, betterWording: textField, ...evidence })),
+  checks: z.array(z.object({ label: textField, status: textField, detail: textField, ...evidence })),
+  coaching: z.array(textField),
+  findings: z.array(z.object({ label: textField, kind: textField, value: textField, ...evidence })),
+  readiness: z.array(z.object({ id: z.string(), score: z.number().nullable(), rationale: textField, ...evidence })),
+  nextAction: textField, reason: textField, questions: z.array(textField), objectionResponses: z.array(textField),
+  documents: z.array(textField), timing: textField, script: textField, siteInvitation: z.string().nullable(),
 });
 export type ConversationReport = z.infer<typeof reportSchema>;
 const normalize = (s: string) => s.normalize("NFKC").replace(/\s+/g, " ").trim();
