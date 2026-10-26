@@ -92,7 +92,7 @@ export const MISSING_REPORT_INFO = "தகவல் இல்லை";
 // Accepts colloquial Tamil text (Tamil script, optionally mixed with English words); only unknown markers are rejected.
 const concise = (value: string | undefined) => {
   if (!value || /^(unknown|insufficient evidence|n\/a)$/i.test(value.trim()) || !/\p{L}/u.test(value)) return MISSING_REPORT_INFO;
-  return value.replace(/\s+/g, " ").trim().split(/(?<=[.!?。])\s+/u)[0] ?? MISSING_REPORT_INFO;
+  return value.replace(/\s+/g, " ").trim().split(/(?<=[.!?。])\s+/u).slice(0, 2).join(" ") || MISSING_REPORT_INFO;
 };
 
 // Display projections only: keep original report fields, weights and priority gates intact.
