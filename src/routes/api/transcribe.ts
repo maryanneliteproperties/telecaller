@@ -153,20 +153,14 @@ export const Route = createFileRoute("/api/transcribe")({
           const uploadedJson = await uploaded.json();
           const fileUri = uploadedJson?.file?.uri;
           if (typeof fileUri !== "string" || !fileUri) return jsonError(502, "Gemini Files API audio URI கிடைக்கவில்லை.");
-          // Use Gemini's dedicated Interactions transcription endpoint. It returns
-          // the transcript in output_text instead of a general chat candidate.
+          // Match Google's documented REST request exactly first: audio URI + MIME type.
+          // The dedicated transcription model auto-detects Tamil/English code-switching.
           res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
             body: JSON.stringify({
-              model,
+              model: "gemini-3.5-transcribe",
               input: [{ type: "audio", uri: fileUri, mime_type: mimeType }],
-              generation_config: {
-                transcription_config: {
-                  mode: "verbatim",
-                  language_codes: [],
-                },
-              },
             }),
             signal: makeSignal(),
           });
@@ -193,25 +187,45 @@ export const Route = createFileRoute("/api/transcribe")({
         let transcript = "";
         try {
           const data = await res.json();
-          // Interactions API's documented transcript field is output_text.
-          // Keep candidate parsing as a fallback for compatible legacy responses.
-          transcript = (typeof data?.output_text === "string" ? data.output_text : "")
-            .trim();
-          if (!transcript) {
-            transcript = data?.candidates?.[0]?.content?.parts
-              ?.map((part: { text?: string }) => part.text ?? "")
-              .join("")
-              .trim() ?? "";
+          const textParts: string[] = [];
+          const addText = (value: unknown) => {
+            if (typeof value === "string" && value.trim()) textParts.push(value.trim());
+          };
+          // Official response field.
+          addText(data?.output_text);
+          // REST responses may also expose text as typed output items/steps.
+          if (Array.isArray(data?.output)) {
+            for (const item of data.output) {
+              addText(item?.text);
+              addText(item?.content?.text);
+              if (Array.isArray(item?.content)) {
+                for (const part of item.content) addText(part?.text);
+              }
+            }
           }
+          if (Array.isArray(data?.steps)) {
+            for (const step of data.steps) {
+              if (Array.isArray(step?.content)) {
+                for (const part of step.content) addText(part?.text);
+              }
+            }
+          }
+          // Compatibility fallback for GenerateContent-style responses.
+          if (Array.isArray(data?.candidates)) {
+            for (const candidate of data.candidates) {
+              for (const part of candidate?.content?.parts ?? []) addText(part?.text);
+            }
+          }
+          transcript = [...new Set(textParts)].join("\\n").trim();
           if (!transcript) {
             console.error("Gemini returned no transcript text", JSON.stringify({
-              status: res.status,
-              statusText: res.statusText,
               keys: data && typeof data === "object" ? Object.keys(data) : [],
-              output: data?.output,
-              candidates: data?.candidates?.map((candidate: { finishReason?: string; finish_reason?: string }) => ({
-                finishReason: candidate.finishReason ?? candidate.finish_reason,
-              })),
+              outputType: Array.isArray(data?.output) ? data.output.map((item: { type?: string }) => item?.type) : typeof data?.output,
+              status: data?.status,
+              error: data?.error,
+              model,
+              mimeType,
+              fileSize: file.size,
             }));
           }
         } catch {
