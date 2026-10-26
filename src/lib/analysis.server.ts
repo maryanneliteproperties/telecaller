@@ -85,12 +85,27 @@ export async function analyseTranscript(request: Request, transcript: string, ap
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);
-    } catch (parseError) {
-      console.error("[analyse] Gemini returned invalid/truncated JSON:", JSON.stringify({ finishReason: candidate?.finishReason, outputLength: text.length, tail: text.slice(-500), parseError: String(parseError) }));
-      if (candidate?.finishReason === "MAX_TOKENS") {
-        return jsonError("AI report நீளமாகி முழுமையடையவில்லை. மீண்டும் முயற்சிக்கவும்; சுருக்கமான report உருவாக்க முயற்சிக்கவும்.", 502);
+    } catch (firstParseError) {
+      // Gemini occasionally emits otherwise usable JSON with markdown fences,
+      // unquoted property names, or trailing commas. Normalize only those syntax
+      // issues, then still run the strict report schema and transcript validation.
+      const unfenced = text.replace(/^\u0060\u0060\u0060(?:json)?\s*/i, "").replace(/\s*\u0060\u0060\u0060\s*$/, "").trim();
+      const start = unfenced.indexOf("{");
+      const end = unfenced.lastIndexOf("}");
+      let repaired = start >= 0 && end > start ? unfenced.slice(start, end + 1) : unfenced;
+      repaired = repaired
+        .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":')
+        .replace(/,\s*([}\]])/g, "$1");
+      try {
+        parsed = JSON.parse(repaired);
+        console.warn("[analyse] Recovered JSON syntax from Gemini output", JSON.stringify({ originalLength: text.length, repairedLength: repaired.length }));
+      } catch (repairError) {
+        console.error("[analyse] Gemini returned invalid JSON:", JSON.stringify({ finishReason: candidate?.finishReason, outputLength: text.length, tail: text.slice(-500), parseError: String(firstParseError), repairError: String(repairError) }));
+        if (candidate?.finishReason === "MAX_TOKENS") {
+          return jsonError("AI report நீளமாகி முழுமையடையவில்லை. மீண்டும் முயற்சிக்கவும்; சுருக்கமான report உருவாக்க முயற்சிக்கவும்.", 502);
+        }
+        return jsonError("AI report சரியான வடிவில் வரவில்லை. மீண்டும் முயற்சிக்கவும்.", 502);
       }
-      return jsonError("AI report சரியான வடிவில் வரவில்லை. மீண்டும் முயற்சிக்கவும்.", 502);
     }
     report = validateReport(parsed, transcript);
   } catch (error) {
