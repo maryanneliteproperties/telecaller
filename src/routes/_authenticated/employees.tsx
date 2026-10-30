@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/employees")({
 });
 function EmployeesPage() {
   const { data } = useSuspenseQuery(employeesOptions), create = useServerFn(createEmployee), update = useServerFn(updateEmployee), remove = useServerFn(deleteEmployee), queryClient = useQueryClient();
-  const [username, setUsername] = useState(""), [email, setEmail] = useState(""), [password, setPassword] = useState(""), [busy, setBusy] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
+  const [username, setUsername] = useState(""), [email, setEmail] = useState(""), [password, setPassword] = useState(""), [showCreatePassword, setShowCreatePassword] = useState(false), [busy, setBusy] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
   const [editing, setEditing] = useState<{id:string;username:string;email:string}|null>(null);
   const [editUsername, setEditUsername] = useState(""), [editEmail, setEditEmail] = useState(""), [editPassword, setEditPassword] = useState(""), [showEditPassword, setShowEditPassword] = useState(false);
   async function submit(e: FormEvent) {
@@ -59,7 +59,7 @@ function EmployeesPage() {
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2"><Label htmlFor="employee-username">Username</Label><Input id="employee-username" required maxLength={40} value={username} onChange={e => setUsername(e.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="employee-email">Email</Label><Input id="employee-email" type="email" required maxLength={255} value={email} onChange={e => setEmail(e.target.value)} /></div>
-        <div className="space-y-2"><Label htmlFor="employee-password">Password</Label><Input id="employee-password" type="password" autoComplete="new-password" required minLength={8} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} /></div>
+        <div className="space-y-2"><Label htmlFor="employee-password">Password</Label><div className="relative"><Input id="employee-password" type={showCreatePassword ? "text" : "password"} autoComplete="new-password" required minLength={8} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="pr-11" /><button type="button" onClick={() => setShowCreatePassword(value => !value)} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground" aria-label={showCreatePassword ? "Hide password" : "Show password"} aria-pressed={showCreatePassword}>{showCreatePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
       </div>
       {error && !editing && <p role="alert" className="text-sm text-destructive">{error}</p>}{message && <p role="status" className="text-sm text-primary">{message}</p>}
       <Button disabled={busy}><UserPlus />{busy ? "Processing…" : "Create Account"}</Button>
