@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { Upload, FileAudio, X, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
@@ -8,18 +8,18 @@ import { Label } from "./ui/label";
 import { customerSchema } from "@/lib/workspace-schema";
 import { ACCEPT_ATTR, formatBytes, validateAudioFile, MAX_AUDIO_BYTES } from "@/lib/audio-limits";
 import { convertAudioForPlayback } from "@/lib/audio-playback";
-import { submitLead } from "@/lib/workspace.functions";
+import { listAvailableProjects, submitLead } from "@/lib/workspace.functions";
 
 export function CustomerSubmission() {
-  const save = useServerFn(submitLead), router = useRouter(), navigate = useNavigate();
+  const save = useServerFn(submitLead), loadProjects = useServerFn(listAvailableProjects), router = useRouter(), navigate = useNavigate();
   const input = useRef<HTMLInputElement>(null), busyRef = useRef(false), key = useRef<string | null>(null);
-  const [name, setName] = useState(""), [phone, setPhone] = useState(""), [followUpDate, setFollowUpDate] = useState(""), [leadStage, setLeadStage] = useState<"Interest" | "Not Interest" | "">(""), [file, setFile] = useState<File | null>(null);
+  const [name, setName] = useState(""), [phone, setPhone] = useState(""), [followUpDate, setFollowUpDate] = useState(""), [leadStage, setLeadStage] = useState<"Interest" | "Not Interest" | "">(""), [projectId, setProjectId] = useState(""), [projects, setProjects] = useState<Array<{id:string;name:string}>>([]), [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [savedId, setSavedId] = useState(""), [busyStatus, setBusyStatus] = useState("");
-  function pick(file?: File) { if (!file) return; const error = validateAudioFile(file); setError(error ?? ""); setFile(error ? null : file); }
+  useEffect(() => { void loadProjects().then(setProjects).catch(() => setError("Projects பட்டியலை ஏற்ற முடியல.")); }, []);\n  function pick(file?: File) { if (!file) return; const error = validateAudioFile(file); setError(error ?? ""); setFile(error ? null : file); }
   async function submit(e: FormEvent) {
     e.preventDefault(); if (busyRef.current) return; setError("");
     key.current ??= crypto.randomUUID();
-    const parsed = customerSchema.safeParse({ customerName: name, customerPhone: phone, submissionKey: key.current, followUpDate, leadStage });
+    const parsed = customerSchema.safeParse({ customerName: name, customerPhone: phone, submissionKey: key.current, followUpDate, leadStage, projectId: projectId || undefined });
     if (!parsed.success || !file) { setError("Customer பெயர், சரியான phone number, Follow Up date, Lead Stage மற்றும் audio சேர்க்கவும்."); return; }
     busyRef.current = true; setBusy(true); setBusyStatus("Customer விவரங்களைச் சேமிக்கத் தயாராகிறது…");
     try {
@@ -35,13 +35,13 @@ export function CustomerSubmission() {
         uploadFile = new File([wavBlob], `${file.name.replace(/\.[^.]+$/, "") || "recording"}.wav`, { type: "audio/wav" });
       }
       setBusyStatus("Audio மற்றும் customer விவரங்களைச் சேமிக்கிறேன்…");
-      const form = new FormData(); form.set("customerName", parsed.data.customerName); form.set("customerPhone", parsed.data.customerPhone); form.set("submissionKey", parsed.data.submissionKey); form.set("followUpDate", parsed.data.followUpDate); form.set("leadStage", parsed.data.leadStage); form.set("file", uploadFile);
+      const form = new FormData(); form.set("customerName", parsed.data.customerName); form.set("customerPhone", parsed.data.customerPhone); form.set("submissionKey", parsed.data.submissionKey); form.set("followUpDate", parsed.data.followUpDate); form.set("leadStage", parsed.data.leadStage); if (parsed.data.projectId) form.set("projectId", parsed.data.projectId); form.set("file", uploadFile);
       const result = await save({ data: form }); setSavedId(result.id); await router.invalidate(); await navigate({ to: "/leads/$id", params: { id: result.id } });
     } catch (e) { setError(e instanceof Error ? e.message : "சேமிக்க முடியல. மீண்டும் முயற்சி பண்ணுங்க."); }
     finally { busyRef.current = false; setBusy(false); setBusyStatus(""); }
   }
   return <main className="mx-auto max-w-4xl px-4 py-10 sm:px-10"><p className="text-xs font-semibold uppercase text-primary">Home / New lead</p><h1 className="mt-2 font-display text-3xl">Submit a customer call</h1><div className="panel mt-8 p-6 sm:p-10">
-    {savedId ? <section className="mt-10 space-y-5 border-y py-8"><CheckCircle2 className="h-10 w-10 text-primary" /><h2 className="text-xl font-semibold">Submitted Successfully!</h2><p className="text-muted-foreground">{name} · {phone} · {file?.name}</p><div className="flex flex-wrap gap-3"><Button onClick={() => { setSavedId(""); setName(""); setPhone(""); setFollowUpDate(""); setLeadStage(""); setFile(null); key.current = null; }}>Add Another Lead</Button><Button asChild variant="outline"><Link to="/leads/$id" params={{ id: savedId }}>View Lead <ArrowRight /></Link></Button></div></section> :
+    {savedId ? <section className="mt-10 space-y-5 border-y py-8"><CheckCircle2 className="h-10 w-10 text-primary" /><h2 className="text-xl font-semibold">Submitted Successfully!</h2><p className="text-muted-foreground">{name} · {phone} · {file?.name}</p><div className="flex flex-wrap gap-3"><Button onClick={() => { setSavedId(""); setName(""); setPhone(""); setFollowUpDate(""); setLeadStage(""); setProjectId(""); setFile(null); key.current = null; }}>Add Another Lead</Button><Button asChild variant="outline"><Link to="/leads/$id" params={{ id: savedId }}>View Lead <ArrowRight /></Link></Button></div></section> :
       <form onSubmit={submit} className="mt-8 space-y-6" aria-label="Customer submission">
         <div className="grid gap-6 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="customer-name">Customer Name</Label><Input id="customer-name" maxLength={100} required value={name} onChange={e => setName(e.target.value)} disabled={busy} placeholder="Customer name" /></div><div className="space-y-2"><Label htmlFor="customer-phone">Phone Number</Label><Input id="customer-phone" type="tel" maxLength={20} required value={phone} onChange={e => setPhone(e.target.value)} disabled={busy} placeholder="Phone number" /></div></div>
         <div className="grid gap-6 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="follow-up-date">Follow Up date</Label><Input id="follow-up-date" type="date" required value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} disabled={busy} /></div><div className="space-y-2"><Label htmlFor="lead-stage">Lead Stage</Label><select id="lead-stage" required value={leadStage} onChange={e => setLeadStage(e.target.value as "Interest" | "Not Interest" | "")} disabled={busy} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"><option value="">Select Lead Stage</option><option value="Interest">Interest</option><option value="Not Interest">Not Interest</option></select></div></div>
