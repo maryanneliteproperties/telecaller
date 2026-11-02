@@ -12,7 +12,7 @@ import type { WorkspaceIdentity } from "@/lib/workspace-schema";
 const PAGE_TITLES: Array<[prefix: string, title: string]> = [
   ["/projects", "Projects"],
   ["/employees", "Employees"],
-  ["/leads", "Leads"],
+  ["/leads", "Reports"],
   ["/reports", "Reports"],
   ["/", "Home"],
 ];
@@ -21,7 +21,7 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
   const [collapsed, setCollapsed] = useState(false), [mobileOpen, setMobileOpen] = useState(false);
   const path = useRouterState({ select: r => r.location.pathname });
   const navigate = useNavigate(), queryClient = useQueryClient(), logout = useServerFn(logoutWorkspace);
-  const items = [{ title: "Home", to: "/" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Report", to: "/reports" as const, icon: FileText }];
+  const items = [{ title: "Home", to: "/" as const, icon: Home }, { title: "Reports", to: "/reports" as const, icon: FileText }];
   const pageTitle = PAGE_TITLES.find(([prefix]) => path === prefix || (prefix !== "/" && path.startsWith(prefix)))?.[1] ?? "Home";
   async function signOut() {
     await queryClient.cancelQueries(); queryClient.clear();
