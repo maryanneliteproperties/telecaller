@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { Home, Users, FileText, PanelLeft, LogOut, Menu, Building2, ShieldCheck, ChevronRight, X } from "lucide-react";
+import { Home, Users, FileText, PanelLeft, LogOut, Menu, Building2, ShieldCheck, ChevronRight, X, FolderKanban } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { logoutWorkspace } from "@/lib/workspace.functions";
@@ -10,6 +10,7 @@ import { getDestinationClient } from "@/lib/destination-client";
 import type { WorkspaceIdentity } from "@/lib/workspace-schema";
 
 const PAGE_TITLES: Array<[prefix: string, title: string]> = [
+  ["/projects", "Projects"],
   ["/employees", "Employees"],
   ["/leads", "Leads"],
   ["/reports", "Reports"],
@@ -35,7 +36,7 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
       </Link>
       <Button type="button" variant="ghost" size="icon" aria-label="Close sidebar" title="Close sidebar" className="shrink-0 text-sidebar-foreground hover:bg-sidebar-accent min-[1200px]:hidden" onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></Button>
     </div>
-    <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-6" aria-label="Main menu">{[...items, ...(identity.role === "admin" ? [{ title: "Employees", to: "/employees" as const, icon: ShieldCheck }] : [])].map(item => <Button key={item.title} asChild variant="ghost" className={`w-full justify-start px-3 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === item.to || (item.to !== "/" && path.startsWith(item.to)) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80"}`} title={item.title}><Link to={item.to} onClick={() => setMobileOpen(false)}><item.icon />{!compact && <span>{item.title}</span>}</Link></Button>)}</nav>
+    <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-6" aria-label="Main menu">{[...items, ...(identity.role === "admin" ? [{ title: "Projects", to: "/projects" as const, icon: FolderKanban }, { title: "Employees", to: "/employees" as const, icon: ShieldCheck }] : [])].map(item => <Button key={item.title} asChild variant="ghost" className={`w-full justify-start px-3 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === item.to || (item.to !== "/" && path.startsWith(item.to)) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80"}`} title={item.title}><Link to={item.to} onClick={() => setMobileOpen(false)}><item.icon />{!compact && <span>{item.title}</span>}</Link></Button>)}</nav>
   </>;
   return <div className="flex min-h-screen w-full min-w-0 overflow-x-clip">
     <aside className={`${collapsed ? "w-16" : "w-60"} sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground min-[1200px]:flex`}>{nav(collapsed)}</aside>
