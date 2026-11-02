@@ -90,7 +90,7 @@ function ReportsPage() {
         {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>}
 
         {activeTab === "leads" && <section role="tabpanel" className="space-y-8">
-          <LeadsPage identity={identity} />
+          <LeadsPage identity={identity} compact />
           <section className="space-y-4 border-t pt-8">
             <div><h2 className="font-display text-2xl">Saved Call Reports</h2><p className="mt-1 text-sm text-muted-foreground">சேமிக்கப்பட்ட call transcripts மற்றும் AI reports.</p></div>
             {reports.length === 0 && <p className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">இன்னும் saved call reports எதுவும் இல்லை.</p>}
