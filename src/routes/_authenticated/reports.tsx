@@ -52,7 +52,7 @@ function ReportsPage() {
               <details open><summary className="cursor-pointer font-medium">சுருக்கம்</summary><pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{safeSummary(r.report)}</pre></details>
             </article>
           ))}
-        </section>>}
+        </section>
       </div>
     </main>
   );
