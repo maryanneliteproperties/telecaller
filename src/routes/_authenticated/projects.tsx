@@ -6,9 +6,12 @@ import { createProject, deleteProject, getWorkspaceIdentity, listProjects, updat
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { FolderPlus, Pencil, Trash2, X } from "lucide-react";
 
 const projectsOptions = queryOptions({ queryKey: ["workspace", "projects"], queryFn: () => listProjects() });
+type Project = { id: string; name: string; created_at: string };
+
 export const Route = createFileRoute("/_authenticated/projects")({
   beforeLoad: async () => { const identity = await getWorkspaceIdentity(); if (identity?.role !== "admin") throw redirect({ to: "/" }); },
   loader: ({ context }) => context.queryClient.ensureQueryData(projectsOptions),
@@ -16,12 +19,12 @@ export const Route = createFileRoute("/_authenticated/projects")({
   component: ProjectsPage,
 });
 
-type Project = { id: string; name: string; created_at: string };
 function ProjectsPage() {
   const { data } = useSuspenseQuery(projectsOptions);
   const create = useServerFn(createProject), update = useServerFn(updateProject), remove = useServerFn(deleteProject);
   const queryClient = useQueryClient();
   const [name, setName] = useState(""), [editing, setEditing] = useState<Project | null>(null), [editName, setEditName] = useState("");
+  const [deleting, setDeleting] = useState<Project | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [message, setMessage] = useState("");
   async function refresh() { await queryClient.invalidateQueries({ queryKey: ["workspace", "projects"] }); }
   async function submit(e: FormEvent) {
@@ -41,11 +44,11 @@ function ProjectsPage() {
     catch (e) { setError(e instanceof Error ? e.message : "Project update செய்ய முடியல."); }
     finally { setBusy(false); }
   }
-  async function deleteRow(row: Project) {
-    if (busy || !window.confirm(`“${row.name}” project-ஐ delete செய்ய வேண்டுமா? இந்தச் செயலை மீண்டும் மாற்ற முடியாது.`)) return;
+  async function confirmDelete() {
+    if (!deleting || busy) return;
     setBusy(true); setError(""); setMessage("");
-    try { await remove({ data: { id: row.id } }); setMessage("Project delete செய்யப்பட்டது."); await refresh(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Project delete செய்ய முடியல."); }
+    try { await remove({ data: { id: deleting.id } }); setMessage("Project delete செய்யப்பட்டது."); setDeleting(null); await refresh(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Project delete செய்ய முடியல."); setDeleting(null); }
     finally { setBusy(false); }
   }
   return <main className="mx-auto max-w-5xl px-4 py-8 sm:px-10">
@@ -61,7 +64,7 @@ function ProjectsPage() {
       <div className="border-b px-5 py-4"><h2 className="font-semibold">Project List</h2><p className="text-xs text-muted-foreground">{data.length} projects</p></div>
       <div className="overflow-x-auto"><table className="w-full min-w-[620px] border-collapse text-left text-sm">
         <thead><tr className="border-b bg-muted/40 text-muted-foreground"><th className="w-20 px-4 py-3 font-semibold">S.No</th><th className="px-4 py-3 font-semibold">Project Name</th><th className="w-52 px-4 py-3 font-semibold">Create At</th><th className="w-44 px-4 py-3 text-right font-semibold">Action</th></tr></thead>
-        <tbody className="divide-y">{data.map((row, index) => <tr key={row.id} className="hover:bg-muted/20"><td className="px-4 py-4 text-muted-foreground">{index + 1}</td><td className="px-4 py-4 font-medium">{row.name}</td><td className="px-4 py-4 text-muted-foreground">{new Date(row.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</td><td className="px-4 py-3"><div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => openEdit(row)}><Pencil className="mr-1 h-4 w-4" />Edit</Button><Button type="button" variant="destructive" size="sm" disabled={busy} onClick={() => deleteRow(row)}><Trash2 className="mr-1 h-4 w-4" />Delete</Button></div></td></tr>)}</tbody>
+        <tbody className="divide-y">{data.map((row, index) => <tr key={row.id} className="hover:bg-muted/20"><td className="px-4 py-4 text-muted-foreground">{index + 1}</td><td className="px-4 py-4 font-medium">{row.name}</td><td className="px-4 py-4 text-muted-foreground">{new Date(row.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</td><td className="px-4 py-3"><div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => openEdit(row)}><Pencil className="mr-1 h-4 w-4" />Edit</Button><Button type="button" variant="destructive" size="sm" disabled={busy} onClick={() => setDeleting(row)}><Trash2 className="mr-1 h-4 w-4" />Delete</Button></div></td></tr>)}</tbody>
       </table></div>
       {data.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">Projects இன்னும் சேர்க்கப்படவில்லை.</p>}
     </section>
@@ -71,5 +74,10 @@ function ProjectsPage() {
         <form onSubmit={saveEdit} className="space-y-4"><div className="space-y-2"><Label htmlFor="edit-project-name">Project Name</Label><Input id="edit-project-name" required maxLength={120} value={editName} onChange={e => setEditName(e.target.value)} /></div>{error && <p role="alert" className="text-sm text-destructive">{error}</p>}<div className="flex justify-end gap-2"><Button type="button" variant="outline" disabled={busy} onClick={() => setEditing(null)}>Cancel</Button><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save Changes"}</Button></div></form>
       </section>
     </div>}
+    <AlertDialog open={!!deleting} onOpenChange={open => { if (!open && !busy) setDeleting(null); }}>
+      <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this project?</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete “{deleting?.name}”? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+        <AlertDialogFooter><AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel><AlertDialogAction disabled={busy} onClick={e => { e.preventDefault(); void confirmDelete(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{busy ? "Deleting…" : "Yes, Delete"}</AlertDialogAction></AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </main>;
 }
