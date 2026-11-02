@@ -131,7 +131,7 @@ export const submitLead = createServerFn({ method: "POST" }).inputValidator((v: 
 export const listLeads = createServerFn({ method: "GET" }).handler(async () => {
   const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
   const identity = await requireWorkspace(), db = workspaceAdmin();
-  let query = db.from("telecaller_data").select("id,call_report_id,customer_name,customer_phone,telecaller_name,audio_name,audio_path,overall_score,created_at,processing_status").order("created_at", { ascending: false }).limit(200);
+  let query = db.from("telecaller_data").select("id,call_report_id,customer_name,customer_phone,telecaller_name,audio_name,audio_path,overall_score,created_at,processing_status,follow_up_date,lead_stage,site_visit_date,site_visit_status,project_id").order("created_at", { ascending: false }).limit(200);
   if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
   const { data, error } = await query;
   if (error) throw new Error("Leads ஏற்ற முடியல. Account setup SQL-ஐ run பண்ணியிருக்கீங்களா சரிபாருங்க.");
@@ -142,6 +142,20 @@ export const listLeads = createServerFn({ method: "GET" }).handler(async () => {
     : { data: [] };
   const signedByPath = new Map((signedFiles ?? []).map(file => [file.path, file.signedUrl]));
   return rows.map(row => ({ ...row, audioUrl: row.audio_path ? signedByPath.get(row.audio_path) ?? null : null }));
+});
+export const updateLeadSiteVisit = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({
+  id: z.string().uuid(),
+  siteVisitDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).nullable(),
+  siteVisitStatus: z.enum(["Not Planned", "Planned", "Confirmed", "Completed", "Rescheduled", "Cancelled"]),
+}).parse(v)).handler(async ({ data }) => {
+  const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
+  const identity = await requireWorkspace(), db = workspaceAdmin();
+  let query = db.from("telecaller_data").update({ site_visit_date: data.siteVisitDate, site_visit_status: data.siteVisitStatus }).eq("id", data.id);
+  if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
+  const { data: row, error } = await query.select("id").maybeSingle();
+  if (error) throw new Error("Site Visit விவரங்களை update செய்ய முடியல. Database migration run செய்துள்ளீர்களா சரிபார்க்கவும்.");
+  if (!row) throw new Error("இந்த lead கிடைக்கல அல்லது update செய்ய அனுமதி இல்லை.");
+  return { ok: true };
 });
 export const deleteLead = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v)).handler(async ({ data }) => {
   const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
