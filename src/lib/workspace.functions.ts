@@ -209,3 +209,40 @@ export const listReports = createServerFn({ method: "GET" }).handler(async () =>
   const signedByPath = new Map((signedFiles ?? []).map(file => [file.path, file.signedUrl]));
   return rows.map(row => ({ ...row, audioUrl: row.audio_path ? signedByPath.get(row.audio_path) ?? null : null }));
 });
+
+const projectNameSchema = z.object({ name: z.string().trim().min(1, "Project Name கொடுக்கவும்.").max(120, "Project Name 120 எழுத்துகளுக்குள் இருக்க வேண்டும்.") });
+const projectIdSchema = z.object({ id: z.string().uuid() });
+
+export const listProjects = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
+  await requireAdmin();
+  const { data, error } = await workspaceAdmin().from("projects").select("id,name,created_at").order("created_at", { ascending: false });
+  if (error) throw new Error("Projects பட்டியலை ஏற்ற முடியல. Project setup SQL run செய்துள்ளீர்களா சரிபார்க்கவும்.");
+  return data ?? [];
+});
+
+export const createProject = createServerFn({ method: "POST" }).inputValidator((v: unknown) => projectNameSchema.parse(v)).handler(async ({ data }) => {
+  const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
+  await requireAdmin();
+  const { data: row, error } = await workspaceAdmin().from("projects").insert({ name: data.name }).select("id,name,created_at").single();
+  if (error || !row) throw new Error(error?.code === "23505" ? "இந்த Project Name ஏற்கனவே உள்ளது." : "Project உருவாக்க முடியல.");
+  return row;
+});
+
+export const updateProject = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({ id: z.string().uuid(), name: projectNameSchema.shape.name }).parse(v)).handler(async ({ data }) => {
+  const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
+  await requireAdmin();
+  const { data: row, error } = await workspaceAdmin().from("projects").update({ name: data.name }).eq("id", data.id).select("id,name,created_at").maybeSingle();
+  if (error) throw new Error(error.code === "23505" ? "இந்த Project Name ஏற்கனவே உள்ளது." : "Project update செய்ய முடியல.");
+  if (!row) throw new Error("Project கிடைக்கல.");
+  return row;
+});
+
+export const deleteProject = createServerFn({ method: "POST" }).inputValidator((v: unknown) => projectIdSchema.parse(v)).handler(async ({ data }) => {
+  const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
+  await requireAdmin();
+  const { error, count } = await workspaceAdmin().from("projects").delete({ count: "exact" }).eq("id", data.id);
+  if (error) throw new Error("Project delete செய்ய முடியல.");
+  if (count === 0) throw new Error("Project கிடைக்கல அல்லது ஏற்கனவே delete செய்யப்பட்டது.");
+  return { ok: true };
+});
