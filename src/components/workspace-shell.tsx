@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { Home, Users, FileText, PanelLeft, LogOut, Menu, Headphones, ShieldCheck, ChevronRight, X } from "lucide-react";
+import { Home, Users, FileText, PanelLeft, LogOut, Menu, Building2, ShieldCheck, ChevronRight, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { logoutWorkspace } from "@/lib/workspace.functions";
@@ -30,8 +30,8 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
   const nav = (compact: boolean) => <>
     <div className="flex h-20 shrink-0 items-center justify-between gap-2 border-b border-sidebar-border px-4">
       <Link to="/" aria-label="AI Call workspace" onClick={() => setMobileOpen(false)} className="flex min-w-0 items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground"><Headphones className="h-5 w-5" /></span>
-        {!compact && <span className="text-sm font-semibold">AI Call<span className="block text-xs font-normal text-sidebar-foreground/70">CRM Workspace</span></span>}
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#8245EF] to-[#D43BCB] text-white shadow-sm"><Building2 className="h-5 w-5" /></span>
+        {!compact && <span className="text-sm font-semibold leading-tight">Mary Ann Elite<span className="block text-xs font-normal text-sidebar-foreground/75">Properties</span></span>}
       </Link>
       <Button type="button" variant="ghost" size="icon" aria-label="Close sidebar" title="Close sidebar" className="shrink-0 text-sidebar-foreground hover:bg-sidebar-accent min-[1200px]:hidden" onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></Button>
     </div>
