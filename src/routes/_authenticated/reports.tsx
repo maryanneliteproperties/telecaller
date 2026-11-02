@@ -1,6 +1,6 @@
 import { CallAudioPlayer } from "@/components/call-audio-player";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";\nimport { LeadsPage } from "./leads";
 import { supabase, getDestinationClient } from "@/lib/destination-client";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_INTENT_WEIGHTS, reportText, type ConversationReport } from "@/lib/conversation-report";
@@ -31,9 +31,9 @@ function ReportsPage() {
 
   return (
     <main lang="ta" className="px-4 py-10 sm:px-10">
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-display text-3xl">சேமித்த Call Reports</h1>
+          <h1 className="font-display text-3xl">Reports</h1>
           <div className="flex gap-2">
             <Button asChild variant="outline"><Link to="/">புதிய call</Link></Button>
           </div>
