@@ -1,6 +1,7 @@
 import { CallAudioPlayer } from "@/components/call-audio-player";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";\nimport { LeadsPage } from "./leads";
+import { useEffect, useState } from "react";
+import { LeadsPage } from "./leads";
 import { supabase, getDestinationClient } from "@/lib/destination-client";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_INTENT_WEIGHTS, reportText, type ConversationReport } from "@/lib/conversation-report";
@@ -28,6 +29,8 @@ type Row = { id: string; created_at: string; transcript: string; report: unknown
 
 function ReportsPage() {
   const { data: rows } = useSuspenseQuery(reportsOptions);
+  const { identity } = Route.useRouteContext();
+  const [tab, setTab] = useState<"leads" | "calls">("leads");
 
   return (
     <main lang="ta" className="px-4 py-10 sm:px-10">
@@ -38,6 +41,8 @@ function ReportsPage() {
             <Button asChild variant="outline"><Link to="/">புதிய call</Link></Button>
           </div>
         </div>
+        <div className="flex gap-2 border-b pb-3" role="tablist" aria-label="Reports tabs"><Button type="button" variant={tab === "leads" ? "default" : "outline"} role="tab" aria-selected={tab === "leads"} onClick={() => setTab("leads")}>Leads</Button><Button type="button" variant={tab === "calls" ? "default" : "outline"} role="tab" aria-selected={tab === "calls"} onClick={() => setTab("calls")}>Call Reports</Button></div>
+        {tab === "leads" ? <LeadsPage identity={identity} /> : <>
         {rows.length === 0 && <p className="text-muted-foreground">இன்னும் report எதுவும் சேமிக்கப்படவில்லை.</p>}
         {rows?.map((r) => (
           <article key={r.id} className="space-y-3 rounded-lg border bg-card p-4">
@@ -49,6 +54,7 @@ function ReportsPage() {
             </details>
           </article>
         ))}
+        </>}
       </div>
     </main>
   );
