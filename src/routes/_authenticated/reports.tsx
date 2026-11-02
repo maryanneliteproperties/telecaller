@@ -1,6 +1,6 @@
 import { CallAudioPlayer } from "@/components/call-audio-player";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+
 import { LeadsPage } from "./leads";
 import { supabase, getDestinationClient } from "@/lib/destination-client";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,6 @@ type Row = { id: string; created_at: string; transcript: string; report: unknown
 function ReportsPage() {
   const { data: rows } = useSuspenseQuery(reportsOptions);
   const { identity } = Route.useRouteContext();
-  const [tab, setTab] = useState<"leads" | "calls">("leads");
 
   return (
     <main lang="ta" className="px-4 py-10 sm:px-10">
@@ -41,20 +40,19 @@ function ReportsPage() {
             <Button asChild variant="outline"><Link to="/">புதிய call</Link></Button>
           </div>
         </div>
-        <div className="flex gap-2 border-b pb-3" role="tablist" aria-label="Reports tabs"><Button type="button" variant={tab === "leads" ? "default" : "outline"} role="tab" aria-selected={tab === "leads"} onClick={() => setTab("leads")}>Leads</Button><Button type="button" variant={tab === "calls" ? "default" : "outline"} role="tab" aria-selected={tab === "calls"} onClick={() => setTab("calls")}>Call Reports</Button></div>
-        {tab === "leads" ? <LeadsPage identity={identity} /> : <>
-        {rows.length === 0 && <p className="text-muted-foreground">இன்னும் report எதுவும் சேமிக்கப்படவில்லை.</p>}
-        {rows?.map((r) => (
-          <article key={r.id} className="space-y-3 rounded-lg border bg-card p-4">
-            <p className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleString("ta-IN")} · {r.audio_name ?? "call"}</p>
-            {r.audioUrl ? <CallAudioPlayer src={r.audioUrl} name={r.audio_name ?? "call"} /> : <p className="text-sm text-muted-foreground">Audio சேமிக்கப்படவில்லை</p>}
-            <details><summary className="cursor-pointer font-medium">Transcript</summary><p className="mt-2 whitespace-pre-wrap text-sm">{r.transcript}</p></details>
-            <details open><summary className="cursor-pointer font-medium">சுருக்கம்</summary>
-              <pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{safeSummary(r.report)}</pre>
-            </details>
-          </article>
-        ))}
-        </>}
+        <LeadsPage identity={identity} />
+        <section className="space-y-4 border-t pt-8">
+          <div><h2 className="font-display text-2xl">Saved Call Reports</h2><p className="mt-1 text-sm text-muted-foreground">Leads பதிவுகளுடன் தொடர்புடைய சேமிக்கப்பட்ட call transcripts மற்றும் AI reports.</p></div>
+          {rows.length === 0 && <p className="text-muted-foreground">இன்னும் saved call reports எதுவும் இல்லை.</p>}
+          {rows?.map((r) => (
+            <article key={r.id} className="space-y-3 rounded-lg border bg-card p-4">
+              <p className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleString("ta-IN")} · {r.audio_name ?? "call"}</p>
+              {r.audioUrl ? <CallAudioPlayer src={r.audioUrl} name={r.audio_name ?? "call"} /> : <p className="text-sm text-muted-foreground">Audio சேமிக்கப்படவில்லை</p>}
+              <details><summary className="cursor-pointer font-medium">Transcript</summary><p className="mt-2 whitespace-pre-wrap text-sm">{r.transcript}</p></details>
+              <details open><summary className="cursor-pointer font-medium">சுருக்கம்</summary><pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{safeSummary(r.report)}</pre></details>
+            </article>
+          ))}
+        </section>>}
       </div>
     </main>
   );
