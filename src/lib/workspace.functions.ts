@@ -145,7 +145,7 @@ export const listLeads = createServerFn({ method: "GET" }).handler(async () => {
 });
 export const updateLeadSiteVisit = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({
   id: z.string().uuid(),
-  siteVisitDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).nullable(),
+  siteVisitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   siteVisitStatus: z.enum(["Not Planned", "Planned", "Confirmed", "Completed", "Rescheduled", "Cancelled"]),
 }).parse(v)).handler(async ({ data }) => {
   const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
