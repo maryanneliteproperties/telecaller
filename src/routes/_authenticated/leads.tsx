@@ -20,7 +20,7 @@ const leadsOptions = queryOptions({ queryKey: ["workspace", "leads"], queryFn: (
 export const Route = createFileRoute("/_authenticated/leads")({
   loader: async ({ context }) => { await context.queryClient.ensureQueryData(leadsOptions); },
   head: () => ({ meta: [{ title: "Leads · AI Call Workspace" }, { name: "description", content: "Customer details, recorded call audio and report status." }, { property: "og:title", content: "Leads · AI Call Workspace" }, { property: "og:description", content: "Your saved customer calls and follow-up reports." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
-  component: LeadsPage,
+  component: LeadsRoutePage,
 });
 function scoreBadge(score: number | null) {
   if (score === null) return <Badge variant="outline" className="text-muted-foreground">AI Pending</Badge>;
@@ -29,7 +29,7 @@ function scoreBadge(score: number | null) {
 }
 function LeadsPage() {
   const { data } = useSuspenseQuery(leadsOptions), [search, setSearch] = useState("");
-  const { identity } = Route.useRouteContext(), remove = useServerFn(deleteLead), queryClient = useQueryClient();
+  const remove = useServerFn(deleteLead), queryClient = useQueryClient();
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState("");
   const [actionError, setActionError] = useState("");
