@@ -4,7 +4,7 @@ import { queryOptions, useSuspenseQuery, useQueryClient } from "@tanstack/react-
 import { Fragment, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { LeadSummary } from "@/components/lead-summary";
-import { deleteLead, getLeadReport, getWorkspaceIdentity, listLeads } from "@/lib/workspace.functions";
+import { deleteLead, getLeadReport, listLeads } from "@/lib/workspace.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +18,7 @@ import { Download, Loader2, Plus, Trash2 } from "lucide-react";
 
 const leadsOptions = queryOptions({ queryKey: ["workspace", "leads"], queryFn: () => listLeads() });
 export const Route = createFileRoute("/_authenticated/leads")({
-  loader: async ({ context }) => { await context.queryClient.ensureQueryData(leadsOptions); return getWorkspaceIdentity(); },
+  loader: async ({ context }) => { await context.queryClient.ensureQueryData(leadsOptions); },
   head: () => ({ meta: [{ title: "Leads · AI Call Workspace" }, { name: "description", content: "Customer details, recorded call audio and report status." }, { property: "og:title", content: "Leads · AI Call Workspace" }, { property: "og:description", content: "Your saved customer calls and follow-up reports." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: LeadsPage,
 });
@@ -29,7 +29,7 @@ function scoreBadge(score: number | null) {
 }
 function LeadsPage() {
   const { data } = useSuspenseQuery(leadsOptions), [search, setSearch] = useState("");
-  const identity = Route.useLoaderData(), remove = useServerFn(deleteLead), queryClient = useQueryClient();
+  const { identity } = Route.useRouteContext(), remove = useServerFn(deleteLead), queryClient = useQueryClient();
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState("");
   const [actionError, setActionError] = useState("");
