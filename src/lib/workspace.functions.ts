@@ -135,10 +135,13 @@ export const listLeads = createServerFn({ method: "GET" }).handler(async () => {
   if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
   const { data, error } = await query;
   if (error) throw new Error("Leads ஏற்ற முடியல. Account setup SQL-ஐ run பண்ணியிருக்கீங்களா சரிபாருங்க.");
-  return Promise.all((data ?? []).map(async row => {
-    const signed = row.audio_path ? await db.storage.from("call-audio").createSignedUrl(row.audio_path, 900) : null;
-    return { ...row, audioUrl: signed?.data?.signedUrl ?? null };
-  }));
+  const rows = data ?? [];
+  const audioPaths = rows.flatMap(row => row.audio_path ? [row.audio_path] : []);
+  const { data: signedFiles } = audioPaths.length
+    ? await db.storage.from("call-audio").createSignedUrls(audioPaths, 900)
+    : { data: [] };
+  const signedByPath = new Map((signedFiles ?? []).map(file => [file.path, file.signedUrl]));
+  return rows.map(row => ({ ...row, audioUrl: row.audio_path ? signedByPath.get(row.audio_path) ?? null : null }));
 });
 export const deleteLead = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v)).handler(async ({ data }) => {
   const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
@@ -198,8 +201,11 @@ export const listReports = createServerFn({ method: "GET" }).handler(async () =>
   if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
   const { data, error } = await query;
   if (error) throw new Error("Reports ஏற்ற முடியல.");
-  return Promise.all((data ?? []).map(async row => {
-    const { data: signed } = row.audio_path ? await db.storage.from("call-audio").createSignedUrl(row.audio_path, 900) : { data: null };
-    return { ...row, audioUrl: signed?.signedUrl ?? null };
-  }));
+  const rows = data ?? [];
+  const audioPaths = rows.flatMap(row => row.audio_path ? [row.audio_path] : []);
+  const { data: signedFiles } = audioPaths.length
+    ? await db.storage.from("call-audio").createSignedUrls(audioPaths, 900)
+    : { data: [] };
+  const signedByPath = new Map((signedFiles ?? []).map(file => [file.path, file.signedUrl]));
+  return rows.map(row => ({ ...row, audioUrl: row.audio_path ? signedByPath.get(row.audio_path) ?? null : null }));
 });
