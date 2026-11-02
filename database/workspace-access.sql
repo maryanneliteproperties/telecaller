@@ -61,6 +61,8 @@ GRANT EXECUTE ON FUNCTION public.consume_workspace_attempt(text) TO service_role
 ALTER TABLE public.telecaller_data ADD COLUMN IF NOT EXISTS owner_id uuid;
 ALTER TABLE public.telecaller_data ADD COLUMN IF NOT EXISTS submission_key uuid;
 ALTER TABLE public.telecaller_data ADD COLUMN IF NOT EXISTS processing_status text NOT NULL DEFAULT 'submitted';
+ALTER TABLE public.telecaller_data ADD COLUMN IF NOT EXISTS follow_up_date date;
+ALTER TABLE public.telecaller_data ADD COLUMN IF NOT EXISTS lead_stage text CHECK (lead_stage IN ('Interest', 'Not Interest'));
 CREATE UNIQUE INDEX IF NOT EXISTS telecaller_submission_key ON public.telecaller_data(submission_key);
 ALTER TABLE public.call_reports ADD COLUMN IF NOT EXISTS owner_id uuid;
 GRANT SELECT ON public.telecaller_data,public.call_reports TO authenticated;
