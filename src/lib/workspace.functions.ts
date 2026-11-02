@@ -102,7 +102,7 @@ export const deleteEmployee = createServerFn({ method: "POST" }).inputValidator(
 });
 export const submitLead = createServerFn({ method: "POST" }).inputValidator((v: unknown) => {
   if (!(v instanceof FormData)) throw new Error("Form சரியில்லை.");
-  const fields = customerSchema.parse({ customerName: v.get("customerName"), customerPhone: v.get("customerPhone"), submissionKey: v.get("submissionKey"), followUpDate: v.get("followUpDate"), leadStage: v.get("leadStage") });
+  const fields = customerSchema.parse({ customerName: v.get("customerName"), customerPhone: v.get("customerPhone"), submissionKey: v.get("submissionKey"), followUpDate: v.get("followUpDate"), leadStage: v.get("leadStage"), projectId: (v.get("projectId") || undefined) });
   const file = v.get("file");
   if (!(file instanceof File)) throw new Error("Audio சேர்க்கவும்.");
   const invalid = validateAudioFile(file); if (invalid) throw new Error(invalid);
@@ -121,7 +121,7 @@ export const submitLead = createServerFn({ method: "POST" }).inputValidator((v: 
   const path = `${ownerId ?? "admin"}/${data.submissionKey}.${ext}`;
   const { error: uploadError } = await db.storage.from("call-audio").upload(path, data.file, { contentType: transcriptionAudioType(data.file), upsert: true });
   if (uploadError) throw new Error("Audio சேமிக்க முடியல. மீண்டும் முயற்சி பண்ணுங்க.");
-  const { data: saved, error } = await db.from("telecaller_data").upsert({ submission_key: data.submissionKey, owner_id: ownerId, customer_name: data.customerName, customer_phone: data.customerPhone, follow_up_date: data.followUpDate, lead_stage: data.leadStage, telecaller_name: identity.username, audio_name: data.file.name, audio_path: path, processing_status: "submitted" }, { onConflict: "submission_key", ignoreDuplicates: true }).select("id").maybeSingle();
+  const { data: saved, error } = await db.from("telecaller_data").upsert({ submission_key: data.submissionKey, owner_id: ownerId, customer_name: data.customerName, customer_phone: data.customerPhone, follow_up_date: data.followUpDate, lead_stage: data.leadStage, project_id: data.projectId ?? null, telecaller_name: identity.username, audio_name: data.file.name, audio_path: path, processing_status: "submitted" }, { onConflict: "submission_key", ignoreDuplicates: true }).select("id").maybeSingle();
   if (error) throw new Error("Customer விவரங்கள் சேமிக்க முடியல. மீண்டும் Submit பண்ணுங்க.");
   if (saved) return { id: saved.id as string };
   const { data: duplicate } = await db.from("telecaller_data").select("id").eq("submission_key", data.submissionKey).maybeSingle();
@@ -245,4 +245,10 @@ export const deleteProject = createServerFn({ method: "POST" }).inputValidator((
   if (error) throw new Error("Project delete செய்ய முடியல.");
   if (count === 0) throw new Error("Project கிடைக்கல அல்லது ஏற்கனவே delete செய்யப்பட்டது.");
   return { ok: true };
+});
+
+export const listAvailableProjects = createServerFn({ method: "GET" }).handler(async () => {
+ const { requireWorkspace, workspaceAdmin } = await import("./workspace.server"); await requireWorkspace();
+ const { data, error } = await workspaceAdmin().from("projects").select("id,name").order("name", { ascending: true });
+ if (error) throw new Error("Projects பட்டியலை ஏற்ற முடியல. Admin-ஐ தொடர்பு கொள்ளவும்."); return data ?? [];
 });
