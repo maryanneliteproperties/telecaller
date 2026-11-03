@@ -20,8 +20,11 @@ function FollowUpsPage() {
   const [dates, setDates] = useState<Record<string,string>>({}), [statuses, setStatuses] = useState<Record<string,string>>({});
   const [saving, setSaving] = useState<string | null>(null), [error, setError] = useState("");
   const projectNames = useMemo(() => new Map(projects.map(p => [p.id,p.name])), [projects]);
-  const rows = useMemo(() => leads.filter(r => kind === "site_visit" ? !!r.follow_up_date : !!r.conversion_follow_up_date)
-    .sort((a,b) => ((kind === "site_visit" ? a.follow_up_date : a.conversion_follow_up_date) ?? "").localeCompare((kind === "site_visit" ? b.follow_up_date : b.conversion_follow_up_date) ?? "")), [leads,kind]);
+  const rows = useMemo(() => [...leads].sort((a,b) => {
+    const aDate = kind === "site_visit" ? a.follow_up_date : a.conversion_follow_up_date;
+    const bDate = kind === "site_visit" ? b.follow_up_date : b.conversion_follow_up_date;
+    return (aDate ?? "9999-12-31").localeCompare(bDate ?? "9999-12-31");
+  }), [leads,kind]);
   async function save(id: string, date: string | null, status: string) {
     setSaving(id); setError("");
     try { await update({ data: { id, followUpType: kind, followUpDate: date, followUpStatus: status as "Pending" | "Completed" | "Rescheduled" | "Not Interested" } }); await client.invalidateQueries({ queryKey: ["workspace","leads"] }); }
