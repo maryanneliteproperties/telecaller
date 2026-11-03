@@ -100,7 +100,7 @@ function FollowUpsPage() {
         <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border">
           <table className="w-full min-w-[1100px] text-sm">
             <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>{["Follow-up Date", "Customer", "Phone", "Project", "Follow-up Type", "Telecaller", "Status", "Action"].map(label => <th key={label} className="whitespace-nowrap px-4 py-3">{label}</th>)}</tr>
+              <tr>{["Next Follow-up Date", "Customer", "Phone", "Project", "Follow-up Type", "Telecaller", "Status", "Action"].map(label => <th key={label} className="whitespace-nowrap px-4 py-3">{label}</th>)}</tr>
             </thead>
             <tbody className="divide-y">
               {rows.map(row => {
@@ -114,7 +114,17 @@ function FollowUpsPage() {
                 return (
                   <tr key={row.id} className="hover:bg-muted/30">
                     <td className="whitespace-nowrap px-4 py-3">
-                      <div>{activeDate ?? "—"}</div>
+                      {kind === "conversion" ? (
+                        <Input
+                          aria-label="Next booking follow-up date"
+                          type="date"
+                          className="w-40"
+                          value={dates[row.id] ?? originalDate ?? ""}
+                          onChange={event => setDates(current => ({ ...current, [row.id]: event.target.value }))}
+                        />
+                      ) : (
+                        <div>{activeDate ?? "—"}</div>
+                      )}
                       {selectedStatus === "Rescheduled" && originalDate && activeDate !== originalDate && (
                         <p className="mt-1 text-xs text-muted-foreground"><strong className="font-semibold text-foreground">Original:</strong> {originalDate}</p>
                       )}
@@ -146,7 +156,7 @@ function FollowUpsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {selectedStatus === "Rescheduled" && activeInputStatus[row.id] === "Rescheduled" && (
+                      {selectedStatus === "Rescheduled" && activeInputStatus[row.id] === "Rescheduled" && kind !== "conversion" && (
                         <Input
                           aria-label="New follow-up date"
                           type="date"
