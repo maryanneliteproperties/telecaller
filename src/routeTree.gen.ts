@@ -16,6 +16,8 @@ import { Route as AuthenticatedEmployeesRouteImport } from './routes/_authentica
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedFollowUpsRouteImport } from './routes/_authenticated/follow-ups'
+import { Route as AuthenticatedSiteVisitsRouteImport } from './routes/_authenticated/site-visits'
 import { Route as ApiAnalyseRouteImport } from './routes/api/analyse'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as AuthenticatedLeadsIdRouteImport } from './routes/_authenticated/leads_.$id'
@@ -49,6 +51,16 @@ const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
   path: '/leads',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedFollowUpsRoute = AuthenticatedFollowUpsRouteImport.update({
+  id: '/follow-ups',
+  path: '/follow-ups',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSiteVisitsRoute = AuthenticatedSiteVisitsRouteImport.update({
+  id: '/site-visits',
+  path: '/site-visits',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -78,6 +90,10 @@ export interface FileRoutesByFullPath {
   '/employees': typeof AuthenticatedEmployeesRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/follow-ups': typeof AuthenticatedFollowUpsRoute
+  '/site-visits': typeof AuthenticatedSiteVisitsRoute
+  '/follow-ups': typeof AuthenticatedFollowUpsRoute
+  '/site-visits': typeof AuthenticatedSiteVisitsRoute
   '/api/analyse': typeof ApiAnalyseRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
@@ -101,6 +117,8 @@ export interface FileRoutesById {
   '/_authenticated/employees': typeof AuthenticatedEmployeesRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
+  '/_authenticated/follow-ups': typeof AuthenticatedFollowUpsRoute
+  '/_authenticated/site-visits': typeof AuthenticatedSiteVisitsRoute
   '/api/analyse': typeof ApiAnalyseRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/_authenticated/leads_/$id': typeof AuthenticatedLeadsIdRoute
@@ -115,6 +133,8 @@ export interface FileRouteTypes {
     | '/employees'
     | '/leads'
     | '/reports'
+    | '/follow-ups'
+    | '/site-visits'
     | '/api/analyse'
     | '/api/transcribe'
     | '/leads/$id'
@@ -137,6 +157,8 @@ export interface FileRouteTypes {
     | '/_authenticated/employees'
     | '/_authenticated/leads'
     | '/_authenticated/reports'
+    | '/_authenticated/follow-ups'
+    | '/_authenticated/site-visits'
     | '/api/analyse'
     | '/api/transcribe'
     | '/_authenticated/leads_/$id'
@@ -194,6 +216,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/follow-ups': {
+      id: '/_authenticated/follow-ups'
+      path: '/follow-ups'
+      fullPath: '/follow-ups'
+      preLoaderRoute: typeof AuthenticatedFollowUpsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/site-visits': {
+      id: '/_authenticated/site-visits'
+      path: '/site-visits'
+      fullPath: '/site-visits'
+      preLoaderRoute: typeof AuthenticatedSiteVisitsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reports': {
       id: '/_authenticated/reports'
       path: '/reports'
@@ -230,6 +266,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmployeesRoute: typeof AuthenticatedEmployeesRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
+  AuthenticatedFollowUpsRoute: typeof AuthenticatedFollowUpsRoute
+  AuthenticatedSiteVisitsRoute: typeof AuthenticatedSiteVisitsRoute
   AuthenticatedLeadsIdRoute: typeof AuthenticatedLeadsIdRoute
 }
 
@@ -238,6 +276,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmployeesRoute: AuthenticatedEmployeesRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
+  AuthenticatedFollowUpsRoute: AuthenticatedFollowUpsRoute,
+  AuthenticatedSiteVisitsRoute: AuthenticatedSiteVisitsRoute,
   AuthenticatedLeadsIdRoute: AuthenticatedLeadsIdRoute,
 }
 
