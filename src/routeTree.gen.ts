@@ -92,8 +92,6 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/follow-ups': typeof AuthenticatedFollowUpsRoute
   '/site-visits': typeof AuthenticatedSiteVisitsRoute
-  '/follow-ups': typeof AuthenticatedFollowUpsRoute
-  '/site-visits': typeof AuthenticatedSiteVisitsRoute
   '/api/analyse': typeof ApiAnalyseRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
@@ -104,11 +102,14 @@ export interface FileRoutesByTo {
   '/employees': typeof AuthenticatedEmployeesRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/reports': typeof AuthenticatedReportsRoute
+  '/follow-ups': typeof AuthenticatedFollowUpsRoute
+  '/site-visits': typeof AuthenticatedSiteVisitsRoute
+  '/follow-ups': typeof AuthenticatedFollowUpsRoute
+  '/site-visits': typeof AuthenticatedSiteVisitsRoute
   '/api/analyse': typeof ApiAnalyseRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
-}
-export interface FileRoutesById {
+}export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
