@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listLeads, listAvailableProjects, updateLeadFollowUp } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,25 @@ function FollowUpsPage() {
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [rowMessages, setRowMessages] = useState<Record<string, { type: "success" | "error"; text: string }>>({});
+  const messageTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  function showRowMessage(id: string, message: { type: "success" | "error"; text: string }) {
+    const previousTimer = messageTimers.current[id];
+    if (previousTimer) clearTimeout(previousTimer);
+    setRowMessages(current => ({ ...current, [id]: message }));
+    messageTimers.current[id] = setTimeout(() => {
+      setRowMessages(current => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      delete messageTimers.current[id];
+    }, 12000);
+  }
+
+  useEffect(() => () => {
+    Object.values(messageTimers.current).forEach(timer => clearTimeout(timer));
+  }, []);
 
   const projectNames = useMemo(() => new Map(projects.map(p => [p.id, p.name])), [projects]);
   const rows = useMemo(
@@ -66,12 +85,9 @@ function FollowUpsPage() {
       setStatuses(current => { const next = { ...current }; delete next[id]; return next; });
       setRescheduleDates(current => { const next = { ...current }; delete next[id]; return next; });
       setReasons(current => { const next = { ...current }; delete next[id]; return next; });
-      setRowMessages(current => { const next = { ...current }; delete next[id]; return next; });
+      showRowMessage(id, { type: "success", text: "Saved successfully ✓" });
     } catch (error) {
-      setRowMessages(current => ({
-        ...current,
-        [id]: { type: "error", text: error instanceof Error ? error.message : "Follow-up save ஆகவில்லை." },
-      }));
+      showRowMessage(id, { type: "error", text: error instanceof Error ? error.message : "Follow-up save ஆகவில்லை." });
     } finally {
       setSaving(null);
     }
