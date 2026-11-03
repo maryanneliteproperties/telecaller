@@ -63,6 +63,7 @@ function FollowUpsPage() {
       await client.invalidateQueries({ queryKey: ["workspace", "leads"] });
       await client.refetchQueries({ queryKey: ["workspace", "leads"], type: "active" });
       setStatuses(current => { const next = { ...current }; delete next[id]; return next; });
+      setDates(current => { const next = { ...current }; delete next[id]; return next; });
       setActiveInputStatus(current => { const next = { ...current }; delete next[id]; return next; });
       setRescheduleDates(current => { const next = { ...current }; delete next[id]; return next; });
       setReasons(current => { const next = { ...current }; delete next[id]; return next; });
@@ -108,7 +109,7 @@ function FollowUpsPage() {
                 const rescheduledDate = kind === "site_visit" ? row.follow_up_rescheduled_date : row.conversion_follow_up_rescheduled_date;
                 const reason = kind === "site_visit" ? row.follow_up_not_interested_reason : row.conversion_follow_up_not_interested_reason;
                 const selectedStatus = statuses[row.id] ?? status ?? "Pending";
-                const activeDate = selectedStatus === "Rescheduled" ? (rescheduleDates[row.id] ?? rescheduledDate ?? originalDate) : originalDate;
+                const activeDate = selectedStatus === "Rescheduled" ? (rescheduleDates[row.id] ?? rescheduledDate ?? originalDate) : (dates[row.id] ?? originalDate);
 
                 return (
                   <tr key={row.id} className="hover:bg-muted/30">
@@ -165,7 +166,7 @@ function FollowUpsPage() {
                       )}
                       <Button
                         size="sm"
-                        disabled={saving === row.id || (selectedStatus === "Rescheduled" && !(rescheduleDates[row.id] ?? rescheduledDate)) || (selectedStatus === "Not Interested" && !(reasons[row.id] ?? reason)?.trim())}
+                        disabled={saving === row.id || (kind === "conversion" && !(dates[row.id] ?? originalDate)) || (selectedStatus === "Rescheduled" && !(rescheduleDates[row.id] ?? rescheduledDate)) || (selectedStatus === "Not Interested" && !(reasons[row.id] ?? reason)?.trim())}
                         onClick={() => void save(row.id, dates[row.id] ?? originalDate ?? null, selectedStatus)}
                       >
                         {saving === row.id ? "Saving..." : "Save"}
