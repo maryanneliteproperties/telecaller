@@ -152,8 +152,15 @@ export const updateLeadFollowUp = createServerFn({ method: "POST" }).inputValida
 }).parse(v)).handler(async ({ data }) => {
   const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
   const identity = await requireWorkspace(), db = workspaceAdmin();
+  if (data.followUpType === "conversion") {
+    let eligibility = db.from("telecaller_data").select("id").eq("id", data.id).eq("site_visit_status", "Completed");
+    if (identity.role !== "admin") eligibility = eligibility.eq("owner_id", identity.id);
+    const { data: eligible, error: eligibilityError } = await eligibility.maybeSingle();
+    if (eligibilityError) throw new Error("Site Visit status-ஐ சரிபார்க்க முடியல.");
+    if (!eligible) throw new Error("Site Visit Completed ஆன customer-க்கு மட்டுமே Second Follow-up அமைக்க முடியும்.");
+  }
   const values = data.followUpType === "site_visit"
-    ? { follow_up_date: data.followUpDate, follow_up_status: data.followUpStatus }
+    ? { follow_up_status: data.followUpStatus }
     : { conversion_follow_up_date: data.followUpDate, conversion_follow_up_status: data.followUpStatus };
   let query = db.from("telecaller_data").update(values).eq("id", data.id);
   if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
