@@ -184,7 +184,7 @@ export const updateLeadSiteVisit = createServerFn({ method: "POST" }).inputValid
   const identity = await requireWorkspace(), db = workspaceAdmin();
   if (data.siteVisitStatus === "Rescheduled" && !data.siteVisitDate) throw new Error("Rescheduled என்றால் புதிய Site Visit date கட்டாயம்.");
   if (data.siteVisitStatus === "Cancelled" && !data.cancelReason?.trim()) throw new Error("Cancelled காரணத்தை பதிவு செய்யவும்.");
-  let query = db.from("telecaller_data").update({ site_visit_date: data.siteVisitDate, site_visit_status: data.siteVisitStatus, site_visit_cancel_reason: data.siteVisitStatus === "Cancelled" ? data.cancelReason : null }).eq("id", data.id);
+  const siteVisitUpdate = { site_visit_date: data.siteVisitDate, site_visit_status: data.siteVisitStatus, site_visit_cancel_reason: data.siteVisitStatus === "Cancelled" ? data.cancelReason : null, ...(data.siteVisitStatus === "Completed" ? { follow_up_status: "Completed", follow_up_rescheduled_date: null, follow_up_not_interested_reason: null } : {}) };\n  let query = db.from("telecaller_data").update(siteVisitUpdate).eq("id", data.id);
   if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
   const { data: row, error } = await query.select("id").maybeSingle();
   if (error) throw new Error("Site Visit விவரங்களை update செய்ய முடியல. Database migration run செய்துள்ளீர்களா சரிபார்க்கவும்.");
