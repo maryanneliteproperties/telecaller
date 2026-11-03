@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { listLeads, listAvailableProjects, updateLeadFollowUp } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,27 +33,6 @@ function FollowUpsPage() {
   const [rescheduleDates, setRescheduleDates] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
-  const [rowMessages, setRowMessages] = useState<Record<string, { type: "success" | "error"; text: string }>>({});
-  const messageTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
-  function showRowMessage(id: string, message: { type: "success" | "error"; text: string }) {
-    const previousTimer = messageTimers.current[id];
-    if (previousTimer) clearTimeout(previousTimer);
-    setRowMessages(current => ({ ...current, [id]: message }));
-    messageTimers.current[id] = setTimeout(() => {
-      setRowMessages(current => {
-        const next = { ...current };
-        delete next[id];
-        return next;
-      });
-      delete messageTimers.current[id];
-    }, 12000);
-  }
-
-  useEffect(() => () => {
-    Object.values(messageTimers.current).forEach(timer => clearTimeout(timer));
-  }, []);
-
   const projectNames = useMemo(() => new Map(projects.map(p => [p.id, p.name])), [projects]);
   const rows = useMemo(
     () => [...leads]
@@ -67,7 +47,6 @@ function FollowUpsPage() {
 
   async function save(id: string, date: string | null, status: string) {
     setSaving(id);
-    setRowMessages(current => ({ ...current, [id]: { type: "success", text: "Saving..." } }));
     try {
       const result = await update({
         data: {
@@ -85,9 +64,9 @@ function FollowUpsPage() {
       setStatuses(current => { const next = { ...current }; delete next[id]; return next; });
       setRescheduleDates(current => { const next = { ...current }; delete next[id]; return next; });
       setReasons(current => { const next = { ...current }; delete next[id]; return next; });
-      showRowMessage(id, { type: "success", text: "Saved successfully ✓" });
+      toast.success("Follow-up saved successfully.");
     } catch (error) {
-      showRowMessage(id, { type: "error", text: error instanceof Error ? error.message : "Follow-up save ஆகவில்லை." });
+      toast.error(error instanceof Error ? error.message : "Follow-up save ஆகவில்லை.");
     } finally {
       setSaving(null);
     }
@@ -128,7 +107,6 @@ function FollowUpsPage() {
                 const reason = kind === "site_visit" ? row.follow_up_not_interested_reason : row.conversion_follow_up_not_interested_reason;
                 const selectedStatus = statuses[row.id] ?? status ?? "Pending";
                 const activeDate = selectedStatus === "Rescheduled" ? (rescheduleDates[row.id] ?? rescheduledDate ?? originalDate) : originalDate;
-                const message = rowMessages[row.id];
 
                 return (
                   <tr key={row.id} className="hover:bg-muted/30">
@@ -150,7 +128,6 @@ function FollowUpsPage() {
                         value={selectedStatus}
                         onChange={event => {
                           setStatuses(current => ({ ...current, [row.id]: event.target.value }));
-                          setRowMessages(current => { const next = { ...current }; delete next[row.id]; return next; });
                         }}
                       >
                         {["Pending", "Completed", "Rescheduled", "Not Interested"].map(value => <option key={value}>{value}</option>)}
@@ -185,7 +162,6 @@ function FollowUpsPage() {
                       >
                         {saving === row.id ? "Saving..." : "Save"}
                       </Button>
-                      {message && <p role="status" className={`mt-2 max-w-56 text-xs ${message.type === "error" ? "text-destructive" : "text-emerald-600"}`}>{message.text}</p>}
 
                     </td>
                   </tr>
