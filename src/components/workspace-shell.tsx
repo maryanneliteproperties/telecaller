@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { Home, Users, FileText, PanelLeft, LogOut, Menu, Building2, ShieldCheck, ChevronRight, X, FolderKanban, CalendarDays, MapPin } from "lucide-react";
+import { Home, Users, FileText, PanelLeft, LogOut, Menu, Building2, ShieldCheck, ChevronRight, X, FolderKanban, CalendarDays, MapPin, LayoutDashboard } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { logoutWorkspace } from "@/lib/workspace.functions";
@@ -10,6 +10,7 @@ import { getDestinationClient } from "@/lib/destination-client";
 import type { WorkspaceIdentity } from "@/lib/workspace-schema";
 
 const PAGE_TITLES: Array<[prefix: string, title: string]> = [
+  ["/dashboard", "Dashboard"],
   ["/projects", "Projects"],
   ["/follow-ups", "Follow Ups"],
   ["/site-visits", "Site Visit"],
@@ -23,7 +24,7 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
   const [collapsed, setCollapsed] = useState(false), [mobileOpen, setMobileOpen] = useState(false);
   const path = useRouterState({ select: r => r.location.pathname });
   const navigate = useNavigate(), queryClient = useQueryClient(), logout = useServerFn(logoutWorkspace);
-  const items = [{ title: "Home", to: "/" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Follow Ups", to: "/follow-ups" as const, icon: CalendarDays }, { title: "Site Visit", to: "/site-visits" as const, icon: MapPin }, { title: "Call Reports", to: "/reports" as const, icon: FileText }];
+  const items = [{ title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard }, { title: "Home / New Lead", to: "/" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Follow Ups", to: "/follow-ups" as const, icon: CalendarDays }, { title: "Site Visit", to: "/site-visits" as const, icon: MapPin }, { title: "Call Reports", to: "/reports" as const, icon: FileText }];
   const pageTitle = PAGE_TITLES.find(([prefix]) => path === prefix || (prefix !== "/" && path.startsWith(prefix)))?.[1] ?? "Home";
   async function signOut() {
     await queryClient.cancelQueries(); queryClient.clear();
