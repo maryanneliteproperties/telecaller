@@ -63,7 +63,10 @@ function FollowUpsPage() {
       if (!result?.ok) throw new Error("Database update confirm ஆகவில்லை.");
       await client.invalidateQueries({ queryKey: ["workspace", "leads"] });
       await client.refetchQueries({ queryKey: ["workspace", "leads"], type: "active" });
-      setRowMessages(current => ({ ...current, [id]: { type: "success", text: "Saved successfully ✓" } }));
+      setStatuses(current => { const next = { ...current }; delete next[id]; return next; });
+      setRescheduleDates(current => { const next = { ...current }; delete next[id]; return next; });
+      setReasons(current => { const next = { ...current }; delete next[id]; return next; });
+      setRowMessages(current => { const next = { ...current }; delete next[id]; return next; });
     } catch (error) {
       setRowMessages(current => ({
         ...current,
@@ -136,6 +139,9 @@ function FollowUpsPage() {
                       >
                         {["Pending", "Completed", "Rescheduled", "Not Interested"].map(value => <option key={value}>{value}</option>)}
                       </select>
+                      {selectedStatus === "Not Interested" && reason && (
+                        <p className="mt-1 max-w-56 whitespace-normal text-xs text-muted-foreground">Reason: {reason}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {selectedStatus === "Rescheduled" && (
@@ -164,7 +170,7 @@ function FollowUpsPage() {
                         {saving === row.id ? "Saving..." : "Save"}
                       </Button>
                       {message && <p role="status" className={`mt-2 max-w-56 text-xs ${message.type === "error" ? "text-destructive" : "text-emerald-600"}`}>{message.text}</p>}
-                      {selectedStatus === "Not Interested" && reason && !reasons[row.id] && <p className="mt-1 max-w-56 text-xs text-muted-foreground">Saved reason: {reason}</p>}
+
                     </td>
                   </tr>
                 );
