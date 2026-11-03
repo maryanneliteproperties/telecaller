@@ -30,6 +30,7 @@ function FollowUpsPage() {
   const [kind, setKind] = useState<"site_visit" | "conversion">("site_visit");
   const [dates, setDates] = useState<Record<string, string>>({});
   const [statuses, setStatuses] = useState<Record<string, string>>({});
+  const [activeInputStatus, setActiveInputStatus] = useState<Record<string, string>>({});
   const [rescheduleDates, setRescheduleDates] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
@@ -62,6 +63,7 @@ function FollowUpsPage() {
       await client.invalidateQueries({ queryKey: ["workspace", "leads"] });
       await client.refetchQueries({ queryKey: ["workspace", "leads"], type: "active" });
       setStatuses(current => { const next = { ...current }; delete next[id]; return next; });
+      setActiveInputStatus(current => { const next = { ...current }; delete next[id]; return next; });
       setRescheduleDates(current => { const next = { ...current }; delete next[id]; return next; });
       setReasons(current => { const next = { ...current }; delete next[id]; return next; });
       toast.success("Follow-up saved successfully.");
@@ -128,6 +130,12 @@ function FollowUpsPage() {
                         value={selectedStatus}
                         onChange={event => {
                           setStatuses(current => ({ ...current, [row.id]: event.target.value }));
+                          setActiveInputStatus(current => {
+                            const next = { ...current };
+                            if (event.target.value === "Rescheduled" || event.target.value === "Not Interested") next[row.id] = event.target.value;
+                            else delete next[row.id];
+                            return next;
+                          });
                         }}
                       >
                         {["Pending", "Completed", "Rescheduled", "Not Interested"].map(value => <option key={value}>{value}</option>)}
@@ -137,7 +145,7 @@ function FollowUpsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {selectedStatus === "Rescheduled" && (
+                      {selectedStatus === "Rescheduled" && activeInputStatus[row.id] === "Rescheduled" && (
                         <Input
                           aria-label="New follow-up date"
                           type="date"
@@ -146,7 +154,7 @@ function FollowUpsPage() {
                           onChange={event => setRescheduleDates(current => ({ ...current, [row.id]: event.target.value }))}
                         />
                       )}
-                      {selectedStatus === "Not Interested" && (
+                      {selectedStatus === "Not Interested" && activeInputStatus[row.id] === "Not Interested" && (
                         <Input
                           aria-label="Not interested reason"
                           placeholder="Reason (required)"
