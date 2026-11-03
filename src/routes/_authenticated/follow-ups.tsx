@@ -115,7 +115,7 @@ function FollowUpsPage() {
                     <td className="whitespace-nowrap px-4 py-3">
                       <div>{activeDate ?? "—"}</div>
                       {selectedStatus === "Rescheduled" && originalDate && activeDate !== originalDate && (
-                        <p className="mt-1 text-xs text-muted-foreground">Original: {originalDate}</p>
+                        <p className="mt-1 text-xs text-muted-foreground"><strong className="font-semibold text-foreground">Original:</strong> {originalDate}</p>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 font-medium">{row.customer_name ?? "—"}</td>
@@ -141,7 +141,7 @@ function FollowUpsPage() {
                         {["Pending", "Completed", "Rescheduled", "Not Interested"].map(value => <option key={value}>{value}</option>)}
                       </select>
                       {selectedStatus === "Not Interested" && reason && (
-                        <p className="mt-1 max-w-56 whitespace-normal text-xs text-muted-foreground">Reason: {reason}</p>
+                        <p className="mt-1 max-w-56 whitespace-normal text-xs text-muted-foreground"><strong className="font-semibold text-foreground">Reason:</strong> {reason}</p>
                       )}
                     </td>
                     <td className="px-4 py-3">
