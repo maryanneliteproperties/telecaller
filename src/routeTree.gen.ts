@@ -104,8 +104,6 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/follow-ups': typeof AuthenticatedFollowUpsRoute
   '/site-visits': typeof AuthenticatedSiteVisitsRoute
-  '/follow-ups': typeof AuthenticatedFollowUpsRoute
-  '/site-visits': typeof AuthenticatedSiteVisitsRoute
   '/api/analyse': typeof ApiAnalyseRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/leads/$id': typeof AuthenticatedLeadsIdRoute
