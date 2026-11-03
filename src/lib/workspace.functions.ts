@@ -149,7 +149,7 @@ export const updateLeadFollowUp = createServerFn({ method: "POST" }).inputValida
   followUpType: z.enum(["site_visit", "conversion"]),
   followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   followUpStatus: z.enum(["Pending", "Completed", "Rescheduled", "Not Interested"]),
-  rescheduledDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).nullable().optional(),
+  rescheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   notInterestedReason: z.string().trim().max(500).nullable().optional(),
 }).parse(v)).handler(async ({ data }) => {
   const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
