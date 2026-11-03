@@ -131,7 +131,7 @@ export const submitLead = createServerFn({ method: "POST" }).inputValidator((v: 
 export const listLeads = createServerFn({ method: "GET" }).handler(async () => {
   const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
   const identity = await requireWorkspace(), db = workspaceAdmin();
-  let query = db.from("telecaller_data").select("id,call_report_id,customer_name,customer_phone,telecaller_name,audio_name,audio_path,overall_score,created_at,processing_status,follow_up_date,follow_up_status,conversion_follow_up_date,conversion_follow_up_status,lead_stage,site_visit_date,site_visit_status,project_id").order("created_at", { ascending: false }).limit(200);
+  let query = db.from("telecaller_data").select("id,call_report_id,customer_name,customer_phone,telecaller_name,audio_name,audio_path,overall_score,created_at,processing_status,follow_up_date,follow_up_status,follow_up_rescheduled_date,follow_up_not_interested_reason,conversion_follow_up_date,conversion_follow_up_status,conversion_follow_up_rescheduled_date,conversion_follow_up_not_interested_reason,lead_stage,site_visit_date,site_visit_status,site_visit_cancel_reason,project_id").order("created_at", { ascending: false }).limit(200);
   if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
   const { data, error } = await query;
   if (error) throw new Error("Leads ஏற்ற முடியல. Account setup SQL-ஐ run பண்ணியிருக்கீங்களா சரிபாருங்க.");
@@ -149,6 +149,8 @@ export const updateLeadFollowUp = createServerFn({ method: "POST" }).inputValida
   followUpType: z.enum(["site_visit", "conversion"]),
   followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   followUpStatus: z.enum(["Pending", "Completed", "Rescheduled", "Not Interested"]),
+  rescheduledDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).nullable().optional(),
+  notInterestedReason: z.string().trim().max(500).nullable().optional(),
 }).parse(v)).handler(async ({ data }) => {
   const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
   const identity = await requireWorkspace(), db = workspaceAdmin();
@@ -159,9 +161,11 @@ export const updateLeadFollowUp = createServerFn({ method: "POST" }).inputValida
     if (eligibilityError) throw new Error("Site Visit status-ஐ சரிபார்க்க முடியல.");
     if (!eligible) throw new Error("Site Visit Completed ஆன customer-க்கு மட்டுமே Second Follow-up அமைக்க முடியும்.");
   }
+  if (data.followUpStatus === "Rescheduled" && !data.rescheduledDate) throw new Error("Rescheduled என்றால் புதிய follow-up date கட்டாயம்.");
+  if (data.followUpStatus === "Not Interested" && !data.notInterestedReason?.trim()) throw new Error("Not Interested காரணத்தை பதிவு செய்யவும்.");
   const values = data.followUpType === "site_visit"
-    ? { follow_up_status: data.followUpStatus }
-    : { conversion_follow_up_date: data.followUpDate, conversion_follow_up_status: data.followUpStatus };
+    ? { follow_up_status: data.followUpStatus, follow_up_rescheduled_date: data.followUpStatus === "Rescheduled" ? data.rescheduledDate : null, follow_up_not_interested_reason: data.followUpStatus === "Not Interested" ? data.notInterestedReason : null }
+    : { conversion_follow_up_date: data.followUpDate, conversion_follow_up_status: data.followUpStatus, conversion_follow_up_rescheduled_date: data.followUpStatus === "Rescheduled" ? data.rescheduledDate : null, conversion_follow_up_not_interested_reason: data.followUpStatus === "Not Interested" ? data.notInterestedReason : null };
   let query = db.from("telecaller_data").update(values).eq("id", data.id);
   if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
   const { data: row, error } = await query.select("id").maybeSingle();
@@ -174,10 +178,13 @@ export const updateLeadSiteVisit = createServerFn({ method: "POST" }).inputValid
   id: z.string().uuid(),
   siteVisitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   siteVisitStatus: z.enum(["Not Planned", "Planned", "Confirmed", "Completed", "Rescheduled", "Cancelled"]),
+  cancelReason: z.string().trim().max(500).nullable().optional(),
 }).parse(v)).handler(async ({ data }) => {
   const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
   const identity = await requireWorkspace(), db = workspaceAdmin();
-  let query = db.from("telecaller_data").update({ site_visit_date: data.siteVisitDate, site_visit_status: data.siteVisitStatus }).eq("id", data.id);
+  if (data.siteVisitStatus === "Rescheduled" && !data.siteVisitDate) throw new Error("Rescheduled என்றால் புதிய Site Visit date கட்டாயம்.");
+  if (data.siteVisitStatus === "Cancelled" && !data.cancelReason?.trim()) throw new Error("Cancelled காரணத்தை பதிவு செய்யவும்.");
+  let query = db.from("telecaller_data").update({ site_visit_date: data.siteVisitDate, site_visit_status: data.siteVisitStatus, site_visit_cancel_reason: data.siteVisitStatus === "Cancelled" ? data.cancelReason : null }).eq("id", data.id);
   if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
   const { data: row, error } = await query.select("id").maybeSingle();
   if (error) throw new Error("Site Visit விவரங்களை update செய்ய முடியல. Database migration run செய்துள்ளீர்களா சரிபார்க்கவும்.");
