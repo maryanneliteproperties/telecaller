@@ -95,12 +95,15 @@ export async function analyseTranscript(request: Request, transcript: string, ap
       let repaired = start >= 0 && end > start ? unfenced.slice(start, end + 1) : unfenced;
       repaired = repaired
         .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":')
+        // Recover a quoted property name whose colon was omitted by Gemini.
+        .replace(/("(?:\\.|[^"\\])*")\s+(?=(?:"|\{|\[|-?\d|true\b|false\b|null\b))/g, "$1:")
         .replace(/,\s*([}\]])/g, "$1");
       try {
         parsed = JSON.parse(repaired);
         console.warn("[analyse] Recovered JSON syntax from Gemini output", JSON.stringify({ originalLength: text.length, repairedLength: repaired.length }));
       } catch (repairError) {
-        console.error("[analyse] Gemini returned invalid JSON:", JSON.stringify({ finishReason: candidate?.finishReason, outputLength: text.length, tail: text.slice(-500), parseError: String(firstParseError), repairError: String(repairError) }));
+        const errorPosition = Number(String(firstParseError).match(/position (\d+)/)?.[1] ?? -1);
+        console.error("[analyse] Gemini returned invalid JSON:", JSON.stringify({ finishReason: candidate?.finishReason, outputLength: text.length, errorContext: errorPosition >= 0 ? text.slice(Math.max(0, errorPosition - 160), errorPosition + 160) : text.slice(-500), parseError: String(firstParseError), repairError: String(repairError) }));
         if (candidate?.finishReason === "MAX_TOKENS") {
           return jsonError("AI report நீளமாகி முழுமையடையவில்லை. மீண்டும் முயற்சிக்கவும்; சுருக்கமான report உருவாக்க முயற்சிக்கவும்.", 502);
         }
