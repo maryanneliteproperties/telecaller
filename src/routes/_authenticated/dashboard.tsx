@@ -73,7 +73,6 @@ function DashboardPage() {
       <div className="mx-auto max-w-[1500px] space-y-7">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-indigo-600">Mary Ann Elite Properties · CRM</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Dashboard</h1>
             <p className="mt-2 text-sm text-slate-500">Your daily sales activity, follow-up pipeline and site visit overview.</p>
           </div>
