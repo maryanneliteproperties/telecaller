@@ -45,10 +45,18 @@ function DashboardPage() {
     const tomorrowFollowups = leads.filter(row => [followupDate(row, "site"), followupDate(row, "booking")].includes(tomorrow));
     const newToday = leads.filter(row => row.created_at && dateKey(new Date(row.created_at)) === today);
     const visitsToday = leads.filter(row => row.site_visit_date === today && row.site_visit_status !== "Cancelled");
-    const schedule = leads.flatMap(row => [
-      ...(followupDate(row, "site") ? [{ id: row.id + "-site", leadId: row.id, date: followupDate(row, "site")!, customer: row.customer_name || "—", phone: row.customer_phone || "—", project: projectNames.get(row.project_id || "") || "—", telecaller: row.telecaller_name || "—", type: "Site Visit Follow-up", status: row.follow_up_status || "Pending" }] : []),
-      ...(followupDate(row, "booking") ? [{ id: row.id + "-booking", leadId: row.id, date: followupDate(row, "booking")!, customer: row.customer_name || "—", phone: row.customer_phone || "—", project: projectNames.get(row.project_id || "") || "—", telecaller: row.telecaller_name || "—", type: "Booking Follow-up", status: row.conversion_follow_up_status || "Pending" }] : []),
-    ]).filter(item => item.date >= today && item.status !== "Completed" && item.status !== "Not Interested").sort((a,b) => a.date.localeCompare(b.date)).slice(0, 10);
+    const siteSchedule = leads.filter(row => {
+      const date = followupDate(row, "site");
+      const status = row.follow_up_status || "Pending";
+      return !!date && date >= today && status !== "Completed" && status !== "Not Interested";
+    }).map(row => ({ id: row.id, date: followupDate(row, "site")!, customer: row.customer_name || "—", phone: row.customer_phone || "—", project: projectNames.get(row.project_id || "") || "—", telecaller: row.telecaller_name || "—", status: row.follow_up_status || "Pending" }))
+      .sort((a,b) => a.date.localeCompare(b.date)).slice(0, 10);
+    const bookingSchedule = leads.filter(row => {
+      const date = followupDate(row, "booking");
+      const status = row.conversion_follow_up_status || "Pending";
+      return !!date && date >= today && status !== "Completed" && status !== "Not Interested";
+    }).map(row => ({ id: row.id, date: followupDate(row, "booking")!, customer: row.customer_name || "—", phone: row.customer_phone || "—", project: projectNames.get(row.project_id || "") || "—", telecaller: row.telecaller_name || "—", status: row.conversion_follow_up_status || "Pending" }))
+      .sort((a,b) => a.date.localeCompare(b.date)).slice(0, 10);
     const statusCounts = ["Pending", "Completed", "Rescheduled", "Not Interested"].map(status => ({
       name: status,
       value: leads.reduce((sum, row) => sum + Number(row.follow_up_status === status) + Number(row.conversion_follow_up_status === status), 0),
@@ -56,7 +64,7 @@ function DashboardPage() {
     const stageCounts = Object.entries(leads.reduce((acc: Record<string, number>, row) => {
       const stage = row.lead_stage || "Not Set"; acc[stage] = (acc[stage] || 0) + 1; return acc;
     }, {})).map(([name, value]) => ({ name, value }));
-    return { dueToday, upcoming, tomorrowFollowups, newToday, visitsToday, schedule, statusCounts, stageCounts };
+    return { dueToday, upcoming, tomorrowFollowups, newToday, visitsToday, siteSchedule, bookingSchedule, statusCounts, stageCounts };
   }, [leads, projectNames, today, tomorrow]);
 
   const cards = [
@@ -98,9 +106,15 @@ function DashboardPage() {
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_35px_-20px_rgba(30,41,59,0.35)] sm:p-6">
-            <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Lead Follow-ups Schedule</h2><p className="mt-1 text-xs text-slate-500">Next 10 pending follow-up appointments</p></div><CalendarDays className="h-5 w-5 text-indigo-500" /></div>
-            <div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-slate-400"><th className="px-3 py-3">Date</th><th className="px-3 py-3">Customer</th><th className="px-3 py-3">Project</th><th className="px-3 py-3">Type</th><th className="px-3 py-3">Telecaller</th><th className="px-3 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{metrics.schedule.map(item=><tr key={item.id} className="transition hover:bg-indigo-50/50"><td className="whitespace-nowrap px-3 py-3 font-semibold text-indigo-700">{displayDate(item.date)}</td><td className="px-3 py-3"><div className="font-semibold text-slate-800">{item.customer}</div><div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400"><Phone className="h-3 w-3" />{item.phone}</div></td><td className="px-3 py-3 text-slate-600">{item.project}</td><td className="whitespace-nowrap px-3 py-3 text-slate-600">{item.type}</td><td className="px-3 py-3 text-slate-600">{item.telecaller}</td><td className="px-3 py-3"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.status}</span></td></tr>)}</tbody></table>{metrics.schedule.length===0&&<div className="py-12 text-center text-sm text-slate-400">No pending follow-ups scheduled.</div>}</div>
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_35px_-20px_rgba(30,41,59,0.35)] sm:p-6">
+              <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Site Visit Schedule</h2><p className="mt-1 text-xs text-slate-500">Next 10 pending site visit follow-ups</p></div><MapPin className="h-5 w-5 text-rose-500" /></div>
+              <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-slate-400"><th className="px-3 py-3">Date</th><th className="px-3 py-3">Customer</th><th className="px-3 py-3">Project</th><th className="px-3 py-3">Telecaller</th><th className="px-3 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{metrics.siteSchedule.map(item=><tr key={item.id} className="transition hover:bg-rose-50/50"><td className="whitespace-nowrap px-3 py-3 font-semibold text-rose-700">{displayDate(item.date)}</td><td className="px-3 py-3"><div className="font-semibold text-slate-800">{item.customer}</div><div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400"><Phone className="h-3 w-3" />{item.phone}</div></td><td className="px-3 py-3 text-slate-600">{item.project}</td><td className="px-3 py-3 text-slate-600">{item.telecaller}</td><td className="px-3 py-3"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.status}</span></td></tr>)}</tbody></table>{metrics.siteSchedule.length===0&&<div className="py-10 text-center text-sm text-slate-400">No pending site visit follow-ups scheduled.</div>}</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_35px_-20px_rgba(30,41,59,0.35)] sm:p-6">
+              <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Booking Conversion Follow-ups</h2><p className="mt-1 text-xs text-slate-500">Next 10 pending booking conversion follow-ups</p></div><CalendarClock className="h-5 w-5 text-indigo-500" /></div>
+              <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-slate-400"><th className="px-3 py-3">Date</th><th className="px-3 py-3">Customer</th><th className="px-3 py-3">Project</th><th className="px-3 py-3">Telecaller</th><th className="px-3 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{metrics.bookingSchedule.map(item=><tr key={item.id} className="transition hover:bg-indigo-50/50"><td className="whitespace-nowrap px-3 py-3 font-semibold text-indigo-700">{displayDate(item.date)}</td><td className="px-3 py-3"><div className="font-semibold text-slate-800">{item.customer}</div><div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400"><Phone className="h-3 w-3" />{item.phone}</div></td><td className="px-3 py-3 text-slate-600">{item.project}</td><td className="px-3 py-3 text-slate-600">{item.telecaller}</td><td className="px-3 py-3"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.status}</span></td></tr>)}</tbody></table>{metrics.bookingSchedule.length===0&&<div className="py-10 text-center text-sm text-slate-400">No pending booking conversion follow-ups scheduled.</div>}</div>
+            </div>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_35px_-20px_rgba(30,41,59,0.35)]"><div className="mb-2"><h2 className="text-lg font-bold text-slate-900">Follow-up Status</h2><p className="text-xs text-slate-500">Status split across both follow-up stages</p></div><div className="h-56"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={metrics.statusCounts} dataKey="value" nameKey="name" cx="50%" cy="48%" innerRadius={55} outerRadius={82} paddingAngle={4} cornerRadius={5}>{metrics.statusCounts.map((entry,index)=><Cell key={entry.name} fill={["#6366f1","#10b981","#f59e0b","#f43f5e"][index%4]} stroke="white" strokeWidth={3}/>)}</Pie><Tooltip/><Legend verticalAlign="bottom" iconType="circle" /></PieChart></ResponsiveContainer>{metrics.statusCounts.length===0&&<p className="text-center text-sm text-slate-400">No follow-up status data yet.</p>}</div></div>
