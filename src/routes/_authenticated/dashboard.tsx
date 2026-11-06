@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { listLeads, listAvailableProjects } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
 import { CalendarClock, CalendarDays, Clock3, Users, UserPlus, MapPin, ArrowUpRight, Phone, CheckCircle2 } from "lucide-react";
@@ -34,24 +34,26 @@ const followupDate = (row: any, type: "site" | "booking") => type === "site"
 function DashboardPage() {
   const { data: leads } = useSuspenseQuery(leadsOptions);
   const { data: projects } = useSuspenseQuery(projectsOptions);
+  const [selectedProject, setSelectedProject] = useState("all");
+  const visibleLeads = useMemo(() => selectedProject === "all" ? leads : leads.filter(row => row.project_id === selectedProject), [leads, selectedProject]);
   const today = dateKey(new Date());
   const tomorrowDate = new Date(); tomorrowDate.setDate(tomorrowDate.getDate() + 1);
   const tomorrow = dateKey(tomorrowDate);
   const projectNames = useMemo(() => new Map(projects.map(p => [p.id, p.name])), [projects]);
 
   const metrics = useMemo(() => {
-    const dueToday = leads.filter(row => [followupDate(row, "site"), followupDate(row, "booking")].includes(today));
-    const upcoming = leads.filter(row => [followupDate(row, "site"), followupDate(row, "booking")].some(date => !!date && date > today));
-    const tomorrowFollowups = leads.filter(row => [followupDate(row, "site"), followupDate(row, "booking")].includes(tomorrow));
-    const newToday = leads.filter(row => row.created_at && dateKey(new Date(row.created_at)) === today);
-    const visitsToday = leads.filter(row => row.site_visit_date === today && row.site_visit_status !== "Cancelled");
-    const siteSchedule = leads.filter(row => {
+    const dueToday = visibleLeads.filter(row => [followupDate(row, "site"), followupDate(row, "booking")].includes(today));
+    const upcoming = visibleLeads.filter(row => [followupDate(row, "site"), followupDate(row, "booking")].some(date => !!date && date > today));
+    const tomorrowFollowups = visibleLeads.filter(row => [followupDate(row, "site"), followupDate(row, "booking")].includes(tomorrow));
+    const newToday = visibleLeads.filter(row => row.created_at && dateKey(new Date(row.created_at)) === today);
+    const visitsToday = visibleLeads.filter(row => row.site_visit_date === today && row.site_visit_status !== "Cancelled");
+    const siteSchedule = visibleLeads.filter(row => {
       const date = followupDate(row, "site");
       const status = row.follow_up_status || "Pending";
       return !!date && date >= today && status !== "Completed" && status !== "Not Interested";
     }).map(row => ({ id: row.id, date: followupDate(row, "site")!, customer: row.customer_name || "—", phone: row.customer_phone || "—", project: projectNames.get(row.project_id || "") || "—", telecaller: row.telecaller_name || "—", status: row.follow_up_status || "Pending" }))
       .sort((a,b) => a.date.localeCompare(b.date)).slice(0, 10);
-    const bookingSchedule = leads.filter(row => {
+    const bookingSchedule = visibleLeads.filter(row => {
       const date = followupDate(row, "booking");
       const status = row.conversion_follow_up_status || "Pending";
       return !!date && date >= today && status !== "Completed" && status !== "Not Interested";
@@ -59,21 +61,21 @@ function DashboardPage() {
       .sort((a,b) => a.date.localeCompare(b.date)).slice(0, 10);
     const statusCounts = ["Pending", "Completed", "Rescheduled", "Not Interested"].map(status => ({
       name: status,
-      value: leads.reduce((sum, row) => sum + Number(row.follow_up_status === status) + Number(row.conversion_follow_up_status === status), 0),
+      value: visibleLeads.reduce((sum, row) => sum + Number(row.follow_up_status === status) + Number(row.conversion_follow_up_status === status), 0),
     })).filter(item => item.value > 0);
-    const stageCounts = Object.entries(leads.reduce((acc: Record<string, number>, row) => {
+    const stageCounts = Object.entries(visibleLeads.reduce((acc: Record<string, number>, row) => {
       const stage = row.lead_stage || "Not Set"; acc[stage] = (acc[stage] || 0) + 1; return acc;
     }, {})).map(([name, value]) => ({ name, value }));
-    return { dueToday, upcoming, tomorrowFollowups, newToday, visitsToday, siteSchedule, bookingSchedule, statusCounts, stageCounts };
-  }, [leads, projectNames, today, tomorrow]);
+    const bookingDone = visibleLeads.filter(row => row.conversion_follow_up_status === "Completed").length;\n    return { dueToday, upcoming, tomorrowFollowups, newToday, visitsToday, siteSchedule, bookingSchedule, statusCounts, stageCounts, bookingDone };
+  }, [visibleLeads, projectNames, today, tomorrow]);
 
   const cards = [
-    { label: "Total Leads", value: leads.length, note: "All leads in your workspace", icon: Users, gradient: "from-violet-600 to-indigo-500", glow: "shadow-violet-500/20" },
+    { label: "Total Leads", value: visibleLeads.length, note: "All leads in your workspace", icon: Users, gradient: "from-violet-600 to-indigo-500", glow: "shadow-violet-500/20" },
     { label: "Today's Follow-ups", value: metrics.dueToday.length, note: "Customers to contact today", icon: CalendarClock, gradient: "from-blue-600 to-cyan-500", glow: "shadow-blue-500/20" },
     { label: "Upcoming Follow-ups", value: metrics.upcoming.length, note: "Scheduled after today", icon: Clock3, gradient: "from-emerald-600 to-teal-500", glow: "shadow-emerald-500/20" },
     { label: "New Leads", value: metrics.newToday.length, note: "Added today", icon: UserPlus, gradient: "from-orange-500 to-amber-400", glow: "shadow-orange-500/20" },
     { label: "Today's Site Visit Schedule", value: metrics.visitsToday.length, note: "Visits planned for today", icon: MapPin, gradient: "from-pink-600 to-rose-500", glow: "shadow-pink-500/20" },
-    { label: "Tomorrow Follow-ups", value: metrics.tomorrowFollowups.length, note: "Customers to contact tomorrow", icon: CalendarDays, gradient: "from-fuchsia-600 to-purple-500", glow: "shadow-fuchsia-500/20" },
+    { label: "Tomorrow Follow-ups", value: metrics.tomorrowFollowups.length, note: "Customers to contact tomorrow", icon: CalendarDays, gradient: "from-fuchsia-600 to-purple-500", glow: "shadow-fuchsia-500/20" },\n    { label: "Booking Done", value: metrics.bookingDone, note: "Booking conversion marked completed", icon: CheckCircle2, gradient: "from-teal-600 to-emerald-500", glow: "shadow-teal-500/20" },
   ];
 
   return (
@@ -90,7 +92,7 @@ function DashboardPage() {
           </div>
         </div>
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Dashboard metrics">
+        <div className="flex flex-wrap items-center gap-2"><label htmlFor="dashboard-project" className="text-sm font-medium text-slate-600">Project</label><select id="dashboard-project" className="h-10 min-w-52 rounded-md border border-slate-200 bg-white px-3 text-sm" value={selectedProject} onChange={event => setSelectedProject(event.target.value)}><option value="all">All Projects</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></div>\n\n        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Dashboard metrics">
           {cards.map((card) => {
             const Icon = card.icon;
             return <div key={card.label} className={`group relative overflow-hidden rounded-2xl border border-white/80 bg-gradient-to-br ${card.gradient} p-5 text-white shadow-xl ${card.glow} transition duration-300 hover:-translate-y-1 hover:shadow-2xl`}>
