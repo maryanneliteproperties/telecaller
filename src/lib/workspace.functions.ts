@@ -251,12 +251,18 @@ export const listReports = createServerFn({ method: "GET" }).handler(async () =>
   const { data, error } = await query;
   if (error) throw new Error("Reports ஏற்ற முடியல.");
   const rows = data ?? [];
+  const reportIds = rows.map(row => row.id);
+  const { data: leadRows, error: leadError } = reportIds.length
+    ? await db.from("telecaller_data").select("call_report_id,customer_name,customer_phone,telecaller_name,project_id").in("call_report_id", reportIds)
+    : { data: [], error: null };
+  if (leadError) throw new Error("Report customer விவரங்களை ஏற்ற முடியல.");
+  const leadByReport = new Map((leadRows ?? []).map(row => [row.call_report_id, row]));
   const audioPaths = rows.flatMap(row => row.audio_path ? [row.audio_path] : []);
   const { data: signedFiles } = audioPaths.length
     ? await db.storage.from("call-audio").createSignedUrls(audioPaths, 900)
     : { data: [] };
   const signedByPath = new Map((signedFiles ?? []).map(file => [file.path, file.signedUrl]));
-  return rows.map(row => ({ ...row, audioUrl: row.audio_path ? signedByPath.get(row.audio_path) ?? null : null }));
+  return rows.map(row => ({ ...row, ...(leadByReport.get(row.id) ?? {}), audioUrl: row.audio_path ? signedByPath.get(row.audio_path) ?? null : null }));
 });
 
 const projectNameSchema = z.object({ name: z.string().trim().min(1, "Project Name கொடுக்கவும்.").max(120, "Project Name 120 எழுத்துகளுக்குள் இருக்க வேண்டும்.") });
