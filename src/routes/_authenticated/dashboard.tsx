@@ -66,7 +66,8 @@ function DashboardPage() {
     const stageCounts = Object.entries(visibleLeads.reduce((acc: Record<string, number>, row) => {
       const stage = row.lead_stage || "Not Set"; acc[stage] = (acc[stage] || 0) + 1; return acc;
     }, {})).map(([name, value]) => ({ name, value }));
-    const bookingDone = visibleLeads.filter(row => row.conversion_follow_up_status === "Completed").length;\n    return { dueToday, upcoming, tomorrowFollowups, newToday, visitsToday, siteSchedule, bookingSchedule, statusCounts, stageCounts, bookingDone };
+    const bookingDone = visibleLeads.filter(row => row.conversion_follow_up_status === "Completed").length;
+    return { dueToday, upcoming, tomorrowFollowups, newToday, visitsToday, siteSchedule, bookingSchedule, statusCounts, stageCounts, bookingDone };
   }, [visibleLeads, projectNames, today, tomorrow]);
 
   const cards = [
