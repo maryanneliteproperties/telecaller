@@ -160,8 +160,8 @@ export const Route = createFileRoute("/api/transcribe")({
             model: "gemini-3.5-transcribe",
             input: [{ type: "audio", uri: fileUri, mime_type: mimeType }],
           });
-          // Retry temporary Gemini capacity/rate-limit errors automatically.
-          // The uploaded audio file is reused; it is not uploaded again on each retry.
+          // Retry only temporary capacity errors. Daily quota exhaustion is permanent
+          // until the quota resets or billing/tier limits change, so never retry it.
           for (let attempt = 0; attempt < 3; attempt++) {
             res = await fetch(interactionUrl, {
               method: "POST",
@@ -170,13 +170,15 @@ export const Route = createFileRoute("/api/transcribe")({
               signal: makeSignal(),
             });
             if (res.ok) break;
-            const transientStatus = [429, 500, 502, 503, 504].includes(res.status);
             const responsePreview = await res.clone().text().catch(() => "");
-            const transientMessage = /high demand|temporarily unavailable|resource exhausted|try again later|overloaded/i.test(responsePreview);
-            const shouldRetry = transientStatus || transientMessage;
-            if (!shouldRetry || attempt === 2) break;
+            const dailyQuotaExceeded = /requests per day|per day.*free tier|daily quota|daily limit|retry in \d+h/i.test(responsePreview);
+            if (res.status === 429 && dailyQuotaExceeded) break;
+            const temporaryCapacity = [500, 502, 503, 504].includes(res.status)
+              || (res.status === 429 && /requests per minute|per minute.*limit|rpm|try again in \d+s/i.test(responsePreview))
+              || /high demand|temporarily unavailable|overloaded/i.test(responsePreview);
+            if (!temporaryCapacity || attempt === 2) break;
             const delayMs = attempt === 0 ? 1500 : 3500;
-            console.warn("[transcribe] Gemini temporarily unavailable; retrying", {
+            console.warn("[transcribe] Gemini temporary capacity error; retrying", {
               status: res.status, attempt: attempt + 1, delayMs,
             });
             await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -198,7 +200,11 @@ export const Route = createFileRoute("/api/transcribe")({
             return jsonError(res.status, "Gemini API key invalid அல்லது authorize ஆகவில்லை. Vercel Production-ல் GEMINI_API_KEY சரிபார்க்கவும்.");
           }
           if (res.status === 429) {
-            return jsonError(503, "Gemini API request limit / அதிக traffic உள்ளது. சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும்.");
+            const dailyQuotaExceeded = /requests per day|per day.*free tier|daily quota|daily limit|retry in \d+h/i.test(lastErrorMessage);
+            if (dailyQuotaExceeded) {
+              return jsonError("Gemini தினசரி API quota முடிந்துவிட்டது. Quota reset ஆகும் வரை காத்திருக்கவும் அல்லது Google AI Studio-வில் Paid Tier enable செய்யவும். மீண்டும் மீண்டும் retry செய்தாலும் quota அதிகரிக்காது.", 429);
+            }
+            return jsonError("Gemini API request limit அடைந்துள்ளது. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.", 429);
           }
           return jsonError(res.status >= 500 ? 503 : res.status, "Gemini transcription error: " + lastErrorMessage);
         }
