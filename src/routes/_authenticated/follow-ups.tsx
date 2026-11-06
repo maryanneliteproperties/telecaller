@@ -3,19 +3,21 @@ import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { listLeads, listAvailableProjects, updateLeadFollowUp } from "@/lib/workspace.functions";
+import { listLeads, listAvailableProjects, listWorkspaceFilterEmployees, updateLeadFollowUp } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WorkspaceRecordFilters } from "@/components/workspace-record-filters";
 
 const leadsOptions = queryOptions({ queryKey: ["workspace", "leads"], queryFn: () => listLeads() });
 const projectsOptions = queryOptions({ queryKey: ["workspace", "projects"], queryFn: () => listAvailableProjects() });
+const employeeOptions = queryOptions({ queryKey: ["workspace", "filter-employees"], queryFn: () => listWorkspaceFilterEmployees() });
 
 export const Route = createFileRoute("/_authenticated/follow-ups")({
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(leadsOptions),
       context.queryClient.ensureQueryData(projectsOptions),
+      context.queryClient.ensureQueryData(employeeOptions),
     ]);
   },
   head: () => ({ meta: [{ title: "Follow Ups · Mary Ann Elite Properties" }] }),
@@ -25,6 +27,7 @@ export const Route = createFileRoute("/_authenticated/follow-ups")({
 function FollowUpsPage() {
   const { data: leads } = useSuspenseQuery(leadsOptions);
   const { data: projects } = useSuspenseQuery(projectsOptions);
+  const { data: employees } = useSuspenseQuery(employeeOptions);
   const update = useServerFn(updateLeadFollowUp);
   const client = useQueryClient();
 
@@ -102,7 +105,7 @@ function FollowUpsPage() {
             : "Site Visit Completed ஆன customer-க்கு மட்டும் Booking Conversion follow-up செய்யுங்கள்."}
         </p>
 
-        <WorkspaceRecordFilters rows={rows} projects={projects} getDate={getFilterDate} onChange={setFilteredRows} />
+        <WorkspaceRecordFilters rows={rows} projects={projects} employeeNames={employees} getDate={getFilterDate} onChange={setFilteredRows} />
 
         <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border">
           <table className="w-full min-w-[1100px] text-sm">
