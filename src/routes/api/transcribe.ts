@@ -155,15 +155,33 @@ export const Route = createFileRoute("/api/transcribe")({
           if (typeof fileUri !== "string" || !fileUri) return jsonError(502, "Gemini Files API audio URI கிடைக்கவில்லை.");
           // Match Google's documented REST request exactly first: audio URI + MIME type.
           // The dedicated transcription model auto-detects Tamil/English code-switching.
-          res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-            body: JSON.stringify({
-              model: "gemini-3.5-transcribe",
-              input: [{ type: "audio", uri: fileUri, mime_type: mimeType }],
-            }),
-            signal: makeSignal(),
+          const interactionUrl = "https://generativelanguage.googleapis.com/v1beta/interactions";
+          const interactionBody = JSON.stringify({
+            model: "gemini-3.5-transcribe",
+            input: [{ type: "audio", uri: fileUri, mime_type: mimeType }],
           });
+          // Retry temporary Gemini capacity/rate-limit errors automatically.
+          // The uploaded audio file is reused; it is not uploaded again on each retry.
+          for (let attempt = 0; attempt < 3; attempt++) {
+            res = await fetch(interactionUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+              body: interactionBody,
+              signal: makeSignal(),
+            });
+            if (res.ok) break;
+            const transientStatus = [429, 500, 502, 503, 504].includes(res.status);
+            const responsePreview = await res.clone().text().catch(() => "");
+            const transientMessage = /high demand|temporarily unavailable|resource exhausted|try again later|overloaded/i.test(responsePreview);
+            const shouldRetry = transientStatus || transientMessage;
+            if (!shouldRetry || attempt === 2) break;
+            const delayMs = attempt === 0 ? 1500 : 3500;
+            console.warn("[transcribe] Gemini temporarily unavailable; retrying", {
+              status: res.status, attempt: attempt + 1, delayMs,
+            });
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            if (request.signal.aborted) return jsonError(499, "Request cancelled. Please try again.");
+          }
         } catch (e) {
           if (request.signal.aborted) return jsonError(499, "Request cancelled. Please try again.");
           if (e instanceof Error && e.name === "TimeoutError") {
