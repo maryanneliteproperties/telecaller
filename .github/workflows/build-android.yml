@@ -25,6 +25,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -37,7 +40,9 @@ jobs:
           packages: platform-tools platforms;android-35 build-tools;35.0.0
 
       - name: Install app and Capacitor dependencies
-        run: npm install --no-save --package-lock=false @capacitor/core@^7 @capacitor/android@^7 @capacitor/cli@^7
+        run: |
+          bun install --frozen-lockfile
+          bun add --no-save @capacitor/core@^7 @capacitor/android@^7 @capacitor/cli@^7
 
       - name: Generate Android wrapper
         run: |
