@@ -4,7 +4,7 @@ import { queryOptions, useSuspenseQuery, useQueryClient } from "@tanstack/react-
 import { Fragment, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { LeadSummary } from "@/components/lead-summary";
-import { deleteLead, getLeadReport, listLeads, listAvailableProjects, updateLeadSiteVisit } from "@/lib/workspace.functions";
+import { deleteLead, getLeadReport, listLeads, listAvailableProjects, listWorkspaceFilterEmployees, updateLeadSiteVisit } from "@/lib/workspace.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,12 +14,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { validateReport, type ConversationReport } from "@/lib/conversation-report";
 import { downloadReportPdf } from "@/lib/report-pdf";
+import { WorkspaceRecordFilters } from "@/components/workspace-record-filters";
 import { Download, Loader2, Plus, Trash2 } from "lucide-react";
 
 const leadsOptions = queryOptions({ queryKey: ["workspace", "leads"], queryFn: () => listLeads() });
 const projectsOptions = queryOptions({ queryKey: ["workspace", "projects"], queryFn: () => listAvailableProjects() });
+const employeeOptions = queryOptions({ queryKey: ["workspace", "filter-employees"], queryFn: () => listWorkspaceFilterEmployees() });
+const createdDate = (row: { created_at: string }) => row.created_at;
 export const Route = createFileRoute("/_authenticated/leads")({
-  loader: async ({ context }) => { await Promise.all([context.queryClient.ensureQueryData(leadsOptions), context.queryClient.ensureQueryData(projectsOptions)]); },
+  loader: async ({ context }) => { await Promise.all([context.queryClient.ensureQueryData(leadsOptions), context.queryClient.ensureQueryData(projectsOptions), context.queryClient.ensureQueryData(employeeOptions)]); },
   head: () => ({ meta: [{ title: "Leads · AI Call Workspace" }, { name: "description", content: "Customer details, recorded call audio and report status." }, { property: "og:title", content: "Leads · AI Call Workspace" }, { property: "og:description", content: "Your saved customer calls and follow-up reports." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: LeadsPageRoute,
 });
@@ -30,7 +33,7 @@ function scoreBadge(score: number | null) {
   return <Badge className={tone}>{score}/100</Badge>;
 }
 export function LeadsPage({ identity, compact = false }: { identity: { role: "admin" | "employee" } | null; compact?: boolean }) {
-  const { data } = useSuspenseQuery(leadsOptions), { data: projects } = useSuspenseQuery(projectsOptions), [search, setSearch] = useState("");
+  const { data } = useSuspenseQuery(leadsOptions), { data: projects } = useSuspenseQuery(projectsOptions), { data: employees } = useSuspenseQuery(employeeOptions), [filteredRows, setFilteredRows] = useState<typeof data | null>(null);
   const remove = useServerFn(deleteLead), updateVisit = useServerFn(updateLeadSiteVisit), queryClient = useQueryClient();
   const [visitDates, setVisitDates] = useState<Record<string,string>>({});
   const [visitSaving, setVisitSaving] = useState<string | null>(null);
@@ -97,7 +100,7 @@ export function LeadsPage({ identity, compact = false }: { identity: { role: "ad
     } catch (e) { setDownloadError(e instanceof Error ? e.message : "Report download ஆகல."); }
     finally { setDownloading(null); }
   }
-  const rows = useMemo(() => data.filter(row => `${row.customer_name ?? ""} ${row.customer_phone ?? ""} ${row.audio_name ?? ""} ${projectNames.get(row.project_id ?? "") ?? ""}`.toLowerCase().includes(search.toLowerCase())), [data, search, projectNames]);
+  const rows = filteredRows ?? data;
   const stats = useMemo(() => {
     const analysed = data.filter(row => row.overall_score !== null);
     return { total: data.length, pending: data.length - analysed.length, average: analysed.length ? Math.round(analysed.reduce((sum, row) => sum + (row.overall_score ?? 0), 0) / analysed.length) : null };
@@ -109,7 +112,7 @@ export function LeadsPage({ identity, compact = false }: { identity: { role: "ad
       <div className="rounded-lg border bg-card p-4"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI Pending</p><p className="mt-1 text-xl font-semibold">{stats.pending}</p></div>
       <div className="rounded-lg border bg-card p-4"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Average Score</p><p className="mt-1 text-xl font-semibold">{stats.average === null ? "—" : `${stats.average}/100`}</p></div>
     </div>
-    <Input aria-label="Search leads" placeholder="Search customer name or phone" className={`${compact ? "my-1 max-w-sm" : "my-7 max-w-sm"}`} value={search} onChange={e => setSearch(e.target.value)} />
+    <div className={compact ? "my-2" : "my-7"}><WorkspaceRecordFilters rows={data} projects={projects} employeeNames={employees} getDate={createdDate} onChange={setFilteredRows} /></div>
     {downloadError && <p role="alert" className="mb-4 text-sm text-destructive">{downloadError}</p>}
     {visitError && <p role="alert" className="mb-4 text-sm text-destructive">{visitError}</p>}
     {actionError && <p role="alert" className="mb-4 text-sm text-destructive">{actionError}</p>}

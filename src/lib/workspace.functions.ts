@@ -251,12 +251,18 @@ export const listReports = createServerFn({ method: "GET" }).handler(async () =>
   const { data, error } = await query;
   if (error) throw new Error("Reports ஏற்ற முடியல.");
   const rows = data ?? [];
+  const reportIds = rows.map(row => row.id);
+  const { data: leadRows, error: leadError } = reportIds.length
+    ? await db.from("telecaller_data").select("call_report_id,customer_name,customer_phone,telecaller_name,project_id").in("call_report_id", reportIds)
+    : { data: [], error: null };
+  if (leadError) throw new Error("Report customer விவரங்களை ஏற்ற முடியல.");
+  const leadByReport = new Map((leadRows ?? []).map(row => [row.call_report_id, row]));
   const audioPaths = rows.flatMap(row => row.audio_path ? [row.audio_path] : []);
   const { data: signedFiles } = audioPaths.length
     ? await db.storage.from("call-audio").createSignedUrls(audioPaths, 900)
     : { data: [] };
   const signedByPath = new Map((signedFiles ?? []).map(file => [file.path, file.signedUrl]));
-  return rows.map(row => ({ ...row, audioUrl: row.audio_path ? signedByPath.get(row.audio_path) ?? null : null }));
+  return rows.map(row => ({ ...row, ...(leadByReport.get(row.id) ?? {}), audioUrl: row.audio_path ? signedByPath.get(row.audio_path) ?? null : null }));
 });
 
 const projectNameSchema = z.object({ name: z.string().trim().min(1, "Project Name கொடுக்கவும்.").max(120, "Project Name 120 எழுத்துகளுக்குள் இருக்க வேண்டும்.") });
@@ -294,6 +300,15 @@ export const deleteProject = createServerFn({ method: "POST" }).inputValidator((
   if (error) throw new Error("Project delete செய்ய முடியல.");
   if (count === 0) throw new Error("Project கிடைக்கல அல்லது ஏற்கனவே delete செய்யப்பட்டது.");
   return { ok: true };
+});
+
+export const listWorkspaceFilterEmployees = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
+  const identity = await requireWorkspace();
+  if (identity.role !== "admin") return [identity.username];
+  const { data, error } = await workspaceAdmin().from("profiles").select("username").order("username", { ascending: true });
+  if (error) throw new Error("Employee filter பட்டியலை ஏற்ற முடியல.");
+  return ["Admin", ...(data ?? []).map(row => row.username)];
 });
 
 export const listAvailableProjects = createServerFn({ method: "GET" }).handler(async () => {

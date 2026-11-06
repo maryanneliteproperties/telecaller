@@ -1,20 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { listLeads, listAvailableProjects, updateLeadFollowUp } from "@/lib/workspace.functions";
+import { listLeads, listAvailableProjects, listWorkspaceFilterEmployees, updateLeadFollowUp } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { WorkspaceRecordFilters } from "@/components/workspace-record-filters";
 
 const leadsOptions = queryOptions({ queryKey: ["workspace", "leads"], queryFn: () => listLeads() });
 const projectsOptions = queryOptions({ queryKey: ["workspace", "projects"], queryFn: () => listAvailableProjects() });
+const employeeOptions = queryOptions({ queryKey: ["workspace", "filter-employees"], queryFn: () => listWorkspaceFilterEmployees() });
 
 export const Route = createFileRoute("/_authenticated/follow-ups")({
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(leadsOptions),
       context.queryClient.ensureQueryData(projectsOptions),
+      context.queryClient.ensureQueryData(employeeOptions),
     ]);
   },
   head: () => ({ meta: [{ title: "Follow Ups · Mary Ann Elite Properties" }] }),
@@ -24,10 +27,12 @@ export const Route = createFileRoute("/_authenticated/follow-ups")({
 function FollowUpsPage() {
   const { data: leads } = useSuspenseQuery(leadsOptions);
   const { data: projects } = useSuspenseQuery(projectsOptions);
+  const { data: employees } = useSuspenseQuery(employeeOptions);
   const update = useServerFn(updateLeadFollowUp);
   const client = useQueryClient();
 
   const [kind, setKind] = useState<"site_visit" | "conversion">("site_visit");
+  const [filteredRows, setFilteredRows] = useState<typeof leads | null>(null);
   const [dates, setDates] = useState<Record<string, string>>({});
   const [statuses, setStatuses] = useState<Record<string, string>>({});
   const [activeInputStatus, setActiveInputStatus] = useState<Record<string, string>>({});
@@ -35,6 +40,7 @@ function FollowUpsPage() {
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const projectNames = useMemo(() => new Map(projects.map(p => [p.id, p.name])), [projects]);
+  const getFilterDate = useCallback((row: typeof leads[number]) => kind === "site_visit" ? (row.follow_up_status === "Rescheduled" ? row.follow_up_rescheduled_date || row.follow_up_date : row.follow_up_date) : (row.conversion_follow_up_status === "Rescheduled" ? row.conversion_follow_up_rescheduled_date || row.conversion_follow_up_date : row.conversion_follow_up_date), [kind]);
   const rows = useMemo(
     () => [...leads]
       .filter(row => kind === "site_visit" ? Boolean(row.follow_up_date) : row.site_visit_status === "Completed")
@@ -45,6 +51,8 @@ function FollowUpsPage() {
       }),
     [leads, kind],
   );
+
+  const visibleRows = filteredRows ?? rows;
 
   async function save(id: string, date: string | null, status: string) {
     setSaving(id);
@@ -97,13 +105,15 @@ function FollowUpsPage() {
             : "Site Visit Completed ஆன customer-க்கு மட்டும் Booking Conversion follow-up செய்யுங்கள்."}
         </p>
 
+        <WorkspaceRecordFilters rows={rows} projects={projects} employeeNames={employees} getDate={getFilterDate} onChange={setFilteredRows} />
+
         <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border">
           <table className="w-full min-w-[1100px] text-sm">
             <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>{["Next Follow-up Date", "Customer", "Phone", "Project", "Follow-up Type", "Telecaller", "Status", "Action"].map(label => <th key={label} className="whitespace-nowrap px-4 py-3">{label}</th>)}</tr>
             </thead>
             <tbody className="divide-y">
-              {rows.map(row => {
+              {visibleRows.map(row => {
                 const originalDate = kind === "site_visit" ? row.follow_up_date : row.conversion_follow_up_date;
                 const status = kind === "site_visit" ? row.follow_up_status : row.conversion_follow_up_status;
                 const rescheduledDate = kind === "site_visit" ? row.follow_up_rescheduled_date : row.conversion_follow_up_rescheduled_date;
@@ -188,7 +198,7 @@ function FollowUpsPage() {
               })}
             </tbody>
           </table>
-          {rows.length === 0 && <p className="px-4 py-12 text-center text-sm text-muted-foreground">இந்த வகையில் follow-up செய்ய வேண்டிய leads இல்லை.</p>}
+          {visibleRows.length === 0 && <p className="px-4 py-12 text-center text-sm text-muted-foreground">இந்த வகையில் follow-up செய்ய வேண்டிய leads இல்லை.</p>}
         </div>
       </div>
     </main>
