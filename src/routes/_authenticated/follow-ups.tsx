@@ -108,9 +108,9 @@ function FollowUpsPage() {
         <WorkspaceRecordFilters rows={rows} projects={projects} employeeNames={employees} getDate={getFilterDate} onChange={setFilteredRows} />
 
         <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border">
-          <table className="w-full min-w-[1100px] text-sm">
+          <table className="w-full min-w-[1000px] text-sm">
             <thead className="bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>{["Next Follow-up Date", "Customer", "Phone", "Project", "Follow-up Type", "Telecaller", "Status", "Action"].map(label => <th key={label} className="whitespace-nowrap px-4 py-3">{label}</th>)}</tr>
+              <tr>{["Next Follow-up Date", "Customer", "Phone", "Project", "Follow-up Type", "Status", "Action"].map(label => <th key={label} className="whitespace-nowrap px-4 py-3">{label}</th>)}</tr>
             </thead>
             <tbody className="divide-y">
               {visibleRows.map(row => {
@@ -139,11 +139,10 @@ function FollowUpsPage() {
                         <p className="mt-1 text-xs text-muted-foreground"><strong className="font-semibold text-foreground">Original:</strong> {originalDate}</p>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 font-medium">{row.customer_name ?? "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-medium"><div>{row.customer_name ?? "—"}</div><div className="mt-1 text-xs font-normal text-muted-foreground">Telecaller: {row.telecaller_name ?? "—"}</div></td>
                     <td className="px-4 py-3">{row.customer_phone ?? "—"}</td>
                     <td className="px-4 py-3">{projectNames.get(row.project_id ?? "") ?? "—"}</td>
                     <td className="px-4 py-3">{kind === "site_visit" ? "Site Visit Scheduling" : "Post-Visit Booking"}</td>
-                    <td className="px-4 py-3">{row.telecaller_name ?? "—"}</td>
                     <td className="px-4 py-3">
                       <select
                         aria-label="Follow-up status"
