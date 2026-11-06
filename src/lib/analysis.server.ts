@@ -30,8 +30,10 @@ export async function analyseTranscript(request: Request, transcript: string, ap
   const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
   let response: Response | undefined;
   let lastErrorMessage = "Gemini service is temporarily unavailable.";
+  let lastFailureWasTimeout = false;
+
   for (const model of models) {
-    for (let attempt = 0; attempt < 1; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
         response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent", {
           method: "POST",
@@ -41,15 +43,26 @@ export async function analyseTranscript(request: Request, transcript: string, ap
             contents: [{ role: "user", parts: [{ text: "Transcript:\\n<transcript>\\n" + transcript + "\\n</transcript>" }] }],
             generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 16384 },
           }),
-          signal: AbortSignal.any([request.signal, AbortSignal.timeout(45000)]),
+          signal: AbortSignal.any([request.signal, AbortSignal.timeout(60000)]),
         });
+        lastFailureWasTimeout = false;
       } catch (error) {
         if (request.signal.aborted) return jsonError("Request ரத்து செய்யப்பட்டது. மீண்டும் முயற்சிக்கவும்.", 499);
-        console.error("[analyse] Gemini request failed:", error);
-        lastErrorMessage = "Gemini API-ஐ அணுக முடியவில்லை. மீண்டும் முயற்சிக்கவும்.";
+        const timedOut = error instanceof Error && error.name === "TimeoutError";
+        lastFailureWasTimeout = timedOut;
+        lastErrorMessage = timedOut
+          ? "Gemini AI பதில் தர அதிக நேரம் எடுத்துக்கொண்டது (60 seconds timeout)."
+          : "Gemini API-ஐ அணுக முடியவில்லை. மீண்டும் முயற்சிக்கவும்.";
+        console.error("[analyse] Gemini request failed:", model, error);
         response = undefined;
+        if (timedOut && attempt === 0) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          if (request.signal.aborted) return jsonError("Request ரத்து செய்யப்பட்டது. மீண்டும் முயற்சிக்கவும்.", 499);
+          continue;
+        }
         break;
       }
+
       if (response.ok) break;
       const body = await response.text();
       console.error("[analyse] Gemini API error:", model, response.status, body);
@@ -58,17 +71,28 @@ export async function analyseTranscript(request: Request, transcript: string, ap
         return jsonError("Gemini API key தவறாக உள்ளது. Vercel-ல் GEMINI_API_KEY சரிபார்க்கவும்.", response.status);
       }
       if (response.status === 429) {
-        return jsonError("Gemini API-ல் request limit / அதிக traffic உள்ளது. சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும்.", 503);
+        const dailyQuotaExceeded = /requests per day|per day.*free tier|daily quota|daily limit|retry in \d+h/i.test(lastErrorMessage);
+        if (dailyQuotaExceeded) {
+          // Do not waste time on retries/fallback models for an exhausted daily quota.
+          return jsonError("Gemini API தினசரி quota முடிந்துவிட்டது. Quota reset ஆகும் வரை காத்திருக்கவும் அல்லது Google AI Studio-வில் Paid Tier enable செய்யவும்.", 429);
+        }
       }
-      if (![500, 502, 503, 504].includes(response.status)) {
-        return jsonError(lastErrorMessage, response.status);
-      }
+      const retryable = [500, 502, 503, 504].includes(response.status)
+        || (response.status === 429 && /requests per minute|per minute.*limit|rpm|try again in \d+s/i.test(lastErrorMessage));
+      if (!retryable || attempt === 1) break;
+      const delayMs = attempt === 0 ? 2000 : 4000;
+      console.warn("[analyse] Temporary Gemini error; retrying", { model, status: response.status, attempt: attempt + 1, delayMs });
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      if (request.signal.aborted) return jsonError("Request ரத்து செய்யப்பட்டது. மீண்டும் முயற்சிக்கவும்.", 499);
     }
     if (response?.ok) break;
     response = undefined;
   }
   if (!response?.ok) {
-    return jsonError("Gemini AI-ல் தற்போது அதிக traffic உள்ளது. சில நிமிடங்களில் மீண்டும் முயற்சிக்கவும். விவரம்: " + lastErrorMessage, 503);
+    const timeoutMessage = lastFailureWasTimeout
+      ? "Gemini AI தொடர்ந்து பதில் தரவில்லை. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்."
+      : "Gemini AI-ல் தற்போது temporary high traffic உள்ளது. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.";
+    return jsonError(timeoutMessage + " விவரம்: " + lastErrorMessage, 503);
   }
   let report;
   try {
