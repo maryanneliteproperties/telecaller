@@ -84,11 +84,11 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
           </select>
         </label>
 
-        <label className="w-full sm:w-[270px]">
-          <span className={label}>Search Customer / Phone / Telecaller</span>
+        <label className="w-full sm:w-[190px]">
+          <span className={label}>Search</span>
           <input
             className={field}
-            placeholder="Type name, phone or telecaller..."
+            placeholder="Search..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             aria-label="Search customer name, customer phone, or telecaller"
