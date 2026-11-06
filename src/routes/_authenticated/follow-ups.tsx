@@ -195,7 +195,7 @@ function FollowUpsPage() {
               })}
             </tbody>
           </table>
-          {rows.length === 0 && <p className="px-4 py-12 text-center text-sm text-muted-foreground">இந்த வகையில் follow-up செய்ய வேண்டிய leads இல்லை.</p>}
+          {visibleRows.length === 0 && <p className="px-4 py-12 text-center text-sm text-muted-foreground">இந்த வகையில் follow-up செய்ய வேண்டிய leads இல்லை.</p>}
         </div>
       </div>
     </main>
