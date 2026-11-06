@@ -302,6 +302,15 @@ export const deleteProject = createServerFn({ method: "POST" }).inputValidator((
   return { ok: true };
 });
 
+export const listWorkspaceFilterEmployees = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
+  const identity = await requireWorkspace();
+  if (identity.role !== "admin") return [identity.username];
+  const { data, error } = await workspaceAdmin().from("profiles").select("username").order("username", { ascending: true });
+  if (error) throw new Error("Employee filter பட்டியலை ஏற்ற முடியல.");
+  return ["Admin", ...(data ?? []).map(row => row.username)];
+});
+
 export const listAvailableProjects = createServerFn({ method: "GET" }).handler(async () => {
  const { requireWorkspace, workspaceAdmin } = await import("./workspace.server"); await requireWorkspace();
  const { data, error } = await workspaceAdmin().from("projects").select("id,name").order("name", { ascending: true });
