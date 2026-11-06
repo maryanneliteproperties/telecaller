@@ -33,9 +33,9 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
   }
 
   const started = useRef(false);
-  useEffect(() => { if (autoStart && !started.current) { started.current = true; void transcribe(); } }, [autoStart]);
+  useEffect(() => { if (autoStart && !started.current) { started.current = true; void transcribe(true); } }, [autoStart]);
 
-  async function transcribe() {
+  async function transcribe(autoRetry = false) {
     started.current = true;
     setLoading(true);
     setCompleted(false);
@@ -44,11 +44,21 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
     try {
       const fd = new FormData();
       fd.append("leadId", leadId);
-      const res = await fetch("/api/transcribe", { method: "POST", headers: await destinationHeaders(), body: fd });
-      if (!res.ok || !res.body) {
-        const j = await res.json().catch(() => null);
-        throw new Error(j?.error ?? `Transcription failed (${res.status}).`);
+      let res: Response | null = null;
+      for (let attempt = 0; attempt < (autoRetry ? 3 : 1); attempt++) {
+        res = await fetch("/api/transcribe", { method: "POST", headers: await destinationHeaders(), body: fd });
+        if (res.ok && res.body) break;
+        const j = await res.clone().json().catch(() => null);
+        const message = j?.error ?? `Transcription failed (${res.status}).`;
+        const isTemporaryCapacityError = res.status === 503 && /Gemini API request limit|அதிக traffic|high demand|temporarily unavailable|resource exhausted/i.test(message);
+        if (!autoRetry || !isTemporaryCapacityError || attempt === 2) {
+          throw new Error(message);
+        }
+        const delayMs = attempt === 0 ? 15000 : 30000;
+        setError(`Gemini server busy. ${Math.round(delayMs / 1000)} seconds கழித்து தானாக மீண்டும் முயற்சி செய்கிறோம்…`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
       }
+      if (!res?.ok || !res.body) throw new Error("Transcription failed. Please try again.");
       setAudioPath(res.headers.get("X-Audio-Path") ?? "");
       let text = "";
       let done = false;
