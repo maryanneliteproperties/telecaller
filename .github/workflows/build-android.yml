@@ -1,0 +1,65 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-release
+  cancel-in-progress: false
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install app and Capacitor dependencies
+        run: npm install --no-save --package-lock=false @capacitor/core@^7 @capacitor/android@^7 @capacitor/cli@^7
+
+      - name: Generate Android wrapper
+        run: |
+          mkdir -p www
+          printf '<!doctype html><html><head><meta charset="utf-8"><title>Telecaller</title></head><body>Loading Telecaller CRM…</body></html>' > www/index.html
+          npx cap add android
+          npx cap sync android
+
+      - name: Build installable APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../telecaller.apk
+
+      - name: Publish APK release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-build-${{ github.run_number }}
+          name: Telecaller Android App - Build ${{ github.run_number }}
+          body: |
+            Installable Android build of Mary Ann Elite Properties Telecaller CRM.
+
+            This app securely opens the existing production CRM. Internet access is required.
+            This is an unsigned debug APK; Android may show an install confirmation.
+          files: telecaller.apk
+          make_latest: true

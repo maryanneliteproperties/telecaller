@@ -1,0 +1,13 @@
+{
+  "appId": "com.maryanneliteproperties.telecaller",
+  "appName": "Mary Ann Telecaller",
+  "webDir": "www",
+  "server": {
+    "url": "https://telecaller-76rg.vercel.app",
+    "cleartext": false,
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
