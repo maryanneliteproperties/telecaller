@@ -63,10 +63,10 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
   useEffect(() => { onChange(filtered); }, [filtered, onChange]);
 
   const field = "h-10 w-full min-w-[168px] rounded-lg border border-white/70 bg-white/95 px-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200";
-  const label = "mb-1 block whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-indigo-950/80";
+  const label = "mb-1 block whitespace-nowrap text-[11px] font-bold uppercase tracking-wide text-white";
 
   return (
-    <section className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-100 via-violet-100 to-sky-100 p-3 shadow-sm" aria-label="Record filters">
+    <section className="rounded-2xl border border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 p-3 shadow-sm" aria-label="Record filters">
       <div className="flex flex-wrap items-end gap-3">
         <label className="w-full sm:w-[190px]">
           <span className={label}>Employee</span>
@@ -115,7 +115,7 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
 
         <button
           type="button"
-          className="h-10 w-full sm:w-auto rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-indigo-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          className="h-10 w-full sm:w-auto rounded-lg border-2 border-blue-700 bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
           onClick={() => {
             setEmployee("all");
             setProject("all");
