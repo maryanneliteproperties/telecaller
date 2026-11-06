@@ -9,10 +9,11 @@ type FilterRow = {
 type ProjectOption = { id: string; name: string };
 
 export function WorkspaceRecordFilters<T extends FilterRow>({
-  rows, projects, getDate, onChange,
+  rows, projects, employeeNames = [], getDate, onChange,
 }: {
   rows: T[];
   projects: ProjectOption[];
+  employeeNames?: string[];
   getDate: (row: T) => string | null | undefined;
   onChange: (rows: T[]) => void;
 }) {
@@ -24,7 +25,7 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
   const [phone, setPhone] = useState("");
   const [telecaller, setTelecaller] = useState("");
 
-  const employees = useMemo(() => [...new Set(rows.map(row => row.telecaller_name?.trim()).filter((name): name is string => Boolean(name)))].sort((a, b) => a.localeCompare(b)), [rows]);
+  const employees = useMemo(() => [...new Set([...employeeNames, ...rows.map(row => row.telecaller_name?.trim()).filter((name): name is string => Boolean(name))])].sort((a, b) => a.localeCompare(b)), [rows, employeeNames]);
   const filtered = useMemo(() => {
     const today = new Date();
     const key = (date: Date) => {
