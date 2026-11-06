@@ -2,6 +2,9 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -39,6 +42,8 @@ jobs:
 
       - name: Generate Android wrapper
         run: |
+          mkdir -p www
+          printf '<!doctype html><html><head><meta charset="utf-8"><title>Telecaller</title></head><body>Loading Telecaller CRM…</body></html>' > www/index.html
           npx cap add android
           npx cap sync android
 
