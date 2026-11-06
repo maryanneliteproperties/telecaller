@@ -71,14 +71,14 @@ export async function analyseTranscript(request: Request, transcript: string, ap
         return jsonError("Gemini API key தவறாக உள்ளது. Vercel-ல் GEMINI_API_KEY சரிபார்க்கவும்.", response.status);
       }
       if (response.status === 429) {
-        const dailyQuotaExceeded = /requests per day|per day.*free tier|daily quota|daily limit|retry in \\d+h/i.test(lastErrorMessage);
+        const dailyQuotaExceeded = /requests per day|per day.*free tier|daily quota|daily limit|retry in \d+h/i.test(lastErrorMessage);
         if (dailyQuotaExceeded) {
           // Do not waste time on retries/fallback models for an exhausted daily quota.
           return jsonError("Gemini API தினசரி quota முடிந்துவிட்டது. Quota reset ஆகும் வரை காத்திருக்கவும் அல்லது Google AI Studio-வில் Paid Tier enable செய்யவும்.", 429);
         }
       }
       const retryable = [500, 502, 503, 504].includes(response.status)
-        || (response.status === 429 && /requests per minute|per minute.*limit|rpm|try again in \\d+s/i.test(lastErrorMessage));
+        || (response.status === 429 && /requests per minute|per minute.*limit|rpm|try again in \d+s/i.test(lastErrorMessage));
       if (!retryable || attempt === 1) break;
       const delayMs = attempt === 0 ? 2000 : 4000;
       console.warn("[analyse] Temporary Gemini error; retrying", { model, status: response.status, attempt: attempt + 1, delayMs });
