@@ -76,7 +76,8 @@ function DashboardPage() {
     { label: "Upcoming Follow-ups", value: metrics.upcoming.length, note: "Scheduled after today", icon: Clock3, gradient: "from-emerald-600 to-teal-500", glow: "shadow-emerald-500/20" },
     { label: "New Leads", value: metrics.newToday.length, note: "Added today", icon: UserPlus, gradient: "from-orange-500 to-amber-400", glow: "shadow-orange-500/20" },
     { label: "Today's Site Visit Schedule", value: metrics.visitsToday.length, note: "Visits planned for today", icon: MapPin, gradient: "from-pink-600 to-rose-500", glow: "shadow-pink-500/20" },
-    { label: "Tomorrow Follow-ups", value: metrics.tomorrowFollowups.length, note: "Customers to contact tomorrow", icon: CalendarDays, gradient: "from-fuchsia-600 to-purple-500", glow: "shadow-fuchsia-500/20" },\n    { label: "Booking Done", value: metrics.bookingDone, note: "Booking conversion marked completed", icon: CheckCircle2, gradient: "from-teal-600 to-emerald-500", glow: "shadow-teal-500/20" },
+    { label: "Tomorrow Follow-ups", value: metrics.tomorrowFollowups.length, note: "Customers to contact tomorrow", icon: CalendarDays, gradient: "from-fuchsia-600 to-purple-500", glow: "shadow-fuchsia-500/20" },
+    { label: "Booking Done", value: metrics.bookingDone, note: "Booking conversion marked completed", icon: CheckCircle2, gradient: "from-teal-600 to-emerald-500", glow: "shadow-teal-500/20" },
   ];
 
   return (
