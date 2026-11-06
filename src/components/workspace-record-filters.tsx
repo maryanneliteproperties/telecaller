@@ -67,8 +67,8 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
 
   return (
     <section className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-100 via-violet-100 to-sky-100 p-3 shadow-sm" aria-label="Record filters">
-      <div className="flex items-end gap-3 overflow-x-auto pb-1">
-        <label className="w-[190px] shrink-0">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="w-full sm:w-[190px]">
           <span className={label}>Employee</span>
           <select className={field} value={employee} onChange={e => setEmployee(e.target.value)}>
             <option value="all">All Employees</option>
@@ -84,7 +84,7 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
           </select>
         </label>
 
-        <label className="w-[270px] shrink-0">
+        <label className="w-full sm:w-[270px]">
           <span className={label}>Search Customer / Phone / Telecaller</span>
           <input
             className={field}
@@ -95,7 +95,7 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
           />
         </label>
 
-        <label className="w-[170px] shrink-0">
+        <label className="w-full sm:w-[170px]">
           <span className={label}>Date</span>
           <select className={field} value={datePreset} onChange={e => setDatePreset(e.target.value)}>
             <option value="all">All Dates</option>
@@ -115,7 +115,7 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
 
         <button
           type="button"
-          className="h-10 shrink-0 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-indigo-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          className="h-10 w-full sm:w-auto rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:from-indigo-700 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
           onClick={() => {
             setEmployee("all");
             setProject("all");
