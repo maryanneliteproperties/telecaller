@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Headphones, ShieldCheck, UserRound, ArrowRight, Loader2, Download, Smartphone } from "lucide-react";
 import { getDestinationClient } from "@/lib/destination-client";
@@ -30,6 +30,12 @@ function AuthPage() {
   const adminLogin = useServerFn(loginAdmin);
   const employeeLogin = useServerFn(loginEmployee);
   const [mode, setMode] = useState<"employee" | "admin">("employee");
+  const [isNativeApp, setIsNativeApp] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const capacitor = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+    setIsNativeApp(capacitor?.isNativePlatform?.() === true);
+  }, []);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
@@ -116,7 +122,8 @@ function AuthPage() {
           </form>
         </section>
 
-        <a
+        {isNativeApp === false && (
+          <a
           href={ANDROID_DOWNLOAD_URL}
           className="mt-4 flex w-full items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-card/90 p-4 shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -130,7 +137,8 @@ function AuthPage() {
             </span>
           </span>
           <Download className="h-5 w-5 shrink-0 text-primary" />
-        </a>
+          </a>
+        )}
         <p className="mt-3 text-center text-xs text-muted-foreground">Secure team access · Your CRM data stays in the existing workspace</p>
       </div>
     </main>
