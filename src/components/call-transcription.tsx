@@ -49,7 +49,7 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${savedAudioName.replace(/\\.[^.]+$/, "")}-transcript.txt`;
+    a.download = `${savedAudioName.replace(/\.[^.]+$/, "")}-transcript.txt`;
     a.click();
     URL.revokeObjectURL(url);
   }
