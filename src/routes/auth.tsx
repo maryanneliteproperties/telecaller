@@ -30,7 +30,7 @@ function AuthPage() {
   const adminLogin = useServerFn(loginAdmin);
   const employeeLogin = useServerFn(loginEmployee);
   const [mode, setMode] = useState<"employee" | "admin">("employee");
-  const [isNativeApp, setIsNativeApp] = useState(false);
+  const [isNativeApp, setIsNativeApp] = useState<boolean | null>(null);
 
   useEffect(() => {
     const capacitor = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
@@ -122,7 +122,7 @@ function AuthPage() {
           </form>
         </section>
 
-        {!isNativeApp && (
+        {isNativeApp === false && (
           <a
           href={ANDROID_DOWNLOAD_URL}
           className="mt-4 flex w-full items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-card/90 p-4 shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
