@@ -89,7 +89,6 @@ function FollowUpsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="font-display text-3xl">Follow Ups</h1>
-            <p className="mt-1 text-sm text-muted-foreground">எந்த Telecaller, எந்த Customer-க்கு, எந்த Project தொடர்பாக follow-up செய்கிறார் என்பதை track செய்யுங்கள்.</p>
           </div>
           <Button asChild variant="outline"><Link to="/leads">View Leads</Link></Button>
         </div>
@@ -99,11 +98,7 @@ function FollowUpsPage() {
           <Button variant={kind === "conversion" ? "default" : "outline"} onClick={() => setKind("conversion")}>2nd Follow-up · Booking Conversion</Button>
         </div>
 
-        <p className="text-sm text-muted-foreground">
-          {kind === "site_visit"
-            ? "Home form-ல் கொடுத்த Follow-up Date அடிப்படையில் customer-ஐ தொடர்பு கொண்டு Site Visit arrange / confirm செய்யுங்கள்."
-            : "Site Visit Completed ஆன customer-க்கு மட்டும் Booking Conversion follow-up செய்யுங்கள்."}
-        </p>
+        {kind === "conversion" && <p className="text-sm text-muted-foreground">Site Visit Completed ஆன customer-க்கு மட்டும் Booking Conversion follow-up செய்யுங்கள்.</p>}
 
         <WorkspaceRecordFilters rows={rows} projects={projects} employeeNames={employees} getDate={getFilterDate} onChange={setFilteredRows} />
 
