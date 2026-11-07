@@ -17,14 +17,14 @@ const PAGE_TITLES: Array<[prefix: string, title: string]> = [
   ["/employees", "Employees"],
   ["/leads", "Leads"],
   ["/reports", "Reports"],
-  ["/", "Home"],
+  ["/", "New Lead"],
 ];
 
 export function WorkspaceShell({ identity, children }: { identity: WorkspaceIdentity; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false), [mobileOpen, setMobileOpen] = useState(false);
   const path = useRouterState({ select: r => r.location.pathname });
   const navigate = useNavigate(), queryClient = useQueryClient(), logout = useServerFn(logoutWorkspace);
-  const items = [{ title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard }, { title: "Home / New Lead", to: "/" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Follow Ups", to: "/follow-ups" as const, icon: CalendarDays }, { title: "Site Visit", to: "/site-visits" as const, icon: MapPin }, { title: "Call Reports", to: "/reports" as const, icon: FileText }];
+  const items = [{ title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard }, { title: "New Lead", to: "/" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Follow Ups", to: "/follow-ups" as const, icon: CalendarDays }, { title: "Site Visit", to: "/site-visits" as const, icon: MapPin }, { title: "Call Reports", to: "/reports" as const, icon: FileText }];
   const pageTitle = PAGE_TITLES.find(([prefix]) => path === prefix || (prefix !== "/" && path.startsWith(prefix)))?.[1] ?? "Home";
   async function signOut() {
     await queryClient.cancelQueries(); queryClient.clear();
