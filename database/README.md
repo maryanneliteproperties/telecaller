@@ -13,4 +13,4 @@ After the SQL: create the private `call-audio` storage bucket through the
 Storage API (not SQL) — the app's audio upload needs it.
 
 `destination-data.json` in project backups is an exported data snapshot,
-not schema — restore it only after all three SQL files have run.
+not schema — restore it only after all four SQL files have run.
