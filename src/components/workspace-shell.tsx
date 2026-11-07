@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { Home, Users, FileText, PanelLeft, LogOut, Menu, Building2, ShieldCheck, X, FolderKanban, CalendarDays, MapPin, LayoutDashboard } from "lucide-react";
+import { Home, Users, FileText, PanelLeft, LogOut, Menu, Building2, ShieldCheck, X, FolderKanban, CalendarDays, MapPin, LayoutDashboard, History } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { logoutWorkspace } from "@/lib/workspace.functions";
@@ -15,6 +15,7 @@ const PAGE_TITLES: Array<[prefix: string, title: string]> = [
   ["/follow-ups", "Follow Ups"],
   ["/site-visits", "Site Visit"],
   ["/employees", "Employees"],
+  ["/history", "History"],
   ["/leads", "Leads"],
   ["/reports", "Reports"],
   ["/new_leads", "New Lead"],
@@ -39,7 +40,7 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
       </Link>
       <Button type="button" variant="ghost" size="icon" aria-label="Close sidebar" title="Close sidebar" className="shrink-0 text-sidebar-foreground hover:bg-sidebar-accent min-[1200px]:hidden" onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></Button>
     </div>
-    <nav className="flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-3 pb-8 pt-8" aria-label="Main menu">{[{ title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard }, ...items, ...(identity.role === "admin" ? [{ title: "Projects", to: "/projects" as const, icon: FolderKanban }, { title: "Employees", to: "/employees" as const, icon: ShieldCheck }] : [])].map(item => <Button key={item.title} asChild variant="ghost" className={`min-h-12 w-full justify-start rounded-xl px-3 py-3 text-[15px] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === item.to || (item.to !== "/" && path.startsWith(item.to)) ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title={item.title}><Link to={item.to} onClick={() => setMobileOpen(false)}><item.icon />{!compact && <span>{item.title}</span>}</Link></Button>)}</nav>
+    <nav className="flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-3 pb-8 pt-8" aria-label="Main menu">{[{ title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard }, ...items, ...(identity.role === "admin" ? [{ title: "Projects", to: "/projects" as const, icon: FolderKanban }, { title: "Employees", to: "/employees" as const, icon: ShieldCheck }, { title: "History", to: "/history" as const, icon: History }] : [])].map(item => <Button key={item.title} asChild variant="ghost" className={`min-h-12 w-full justify-start rounded-xl px-3 py-3 text-[15px] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === item.to || (item.to !== "/" && path.startsWith(item.to)) ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title={item.title}><Link to={item.to} onClick={() => setMobileOpen(false)}><item.icon />{!compact && <span>{item.title}</span>}</Link></Button>)}</nav>
   </>;
   return <div className="flex min-h-screen w-full min-w-0 overflow-x-clip">
     <aside className={`${collapsed ? "w-16" : "w-60"} sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground min-[1200px]:flex`}>{nav(collapsed)}</aside>
