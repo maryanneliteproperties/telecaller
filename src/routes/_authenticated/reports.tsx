@@ -22,7 +22,7 @@ function ReportsPage() {
   const [filteredReports, setFilteredReports] = useState<typeof reports | null>(null);
   const visibleReports = filteredReports ?? reports;
   return <main className="w-full min-w-0 overflow-x-clip px-4 py-6 sm:px-10 sm:py-10"><div className="mx-auto max-w-7xl space-y-6">
-    <div><h1 className="font-display text-3xl">Saved Call Reports</h1><p className="mt-1 text-sm text-muted-foreground">சேமிக்கப்பட்ட call transcripts மற்றும் AI reports.</p></div>
+    <div><h1 className="font-display text-3xl">Saved Call Reports</h1></div>
     <WorkspaceRecordFilters rows={reports} projects={projects} employeeNames={employees} getDate={reportDate} onChange={setFilteredReports} />
     {visibleReports.length===0&&<p className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">இன்னும் saved call reports எதுவும் இல்லை.</p>}
     {visibleReports.map(r=><article key={r.id} className="space-y-3 rounded-lg border bg-card p-4"><p className="text-sm text-muted-foreground">{new Date(r.created_at).toLocaleString("ta-IN")} · {r.audio_name??"call"}</p>{r.audioUrl?<CallAudioPlayer src={r.audioUrl} name={r.audio_name??"call"}/>:<p className="text-sm text-muted-foreground">Audio சேமிக்கப்படவில்லை</p>}<details><summary className="cursor-pointer font-medium">Transcript</summary><p className="mt-2 whitespace-pre-wrap text-sm">{r.transcript}</p></details><details><summary className="cursor-pointer font-medium">AI Report சுருக்கம்</summary><pre className="mt-2 whitespace-pre-wrap font-sans text-sm">{safeSummary(r.report)}</pre></details></article>)}
