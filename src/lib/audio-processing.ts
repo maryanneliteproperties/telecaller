@@ -71,42 +71,46 @@ async function postWithCapacityRetry(url: string, init: RequestInit) {
 
 async function run(leadId: string, filename: string) {
   try {
-    update(leadId, { status: "transcribing", error: "" });
-    const form = new FormData();
-    form.append("leadId", leadId);
-    const transcribeResponse = await postWithCapacityRetry("/api/transcribe", {
-      method: "POST",
-      headers: await destinationHeaders(),
-      body: form,
-    });
+    // If analysis failed after transcription, retry from the saved in-memory
+    // transcript instead of spending another transcription request.
+    let transcript = jobs.get(leadId)?.transcript ?? "";
+    if (!transcript.trim()) {
+      update(leadId, { status: "transcribing", error: "" });
+      const form = new FormData();
+      form.append("leadId", leadId);
+      const transcribeResponse = await postWithCapacityRetry("/api/transcribe", {
+        method: "POST",
+        headers: await destinationHeaders(),
+        body: form,
+      });
 
-    let transcript = "";
-    let completed = false;
-    let transcriptionError = "";
-    const parser = createParser({
-      onEvent(event) {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === "transcript.text.delta" && data.delta) transcript += data.delta;
-          if (data.type === "transcript.text.done") {
-            transcript = data.text ?? transcript;
-            completed = true;
-          }
-          if (data.type === "error" || data.error) transcriptionError = data.error?.message ?? data.message ?? "Transcription failed.";
-        } catch {}
-      },
-    });
-    const reader = transcribeResponse.body?.getReader();
-    if (!reader) throw new Error("Transcription response empty-ஆக உள்ளது.");
-    const decoder = new TextDecoder();
-    for (;;) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      parser.feed(decoder.decode(chunk.value, { stream: true }));
+      let completed = false;
+      let transcriptionError = "";
+      const parser = createParser({
+        onEvent(event) {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "transcript.text.delta" && data.delta) transcript += data.delta;
+            if (data.type === "transcript.text.done") {
+              transcript = data.text ?? transcript;
+              completed = true;
+            }
+            if (data.type === "error" || data.error) transcriptionError = data.error?.message ?? data.message ?? "Transcription failed.";
+          } catch {}
+        },
+      });
+      const reader = transcribeResponse.body?.getReader();
+      if (!reader) throw new Error("Transcription response empty-ஆக உள்ளது.");
+      const decoder = new TextDecoder();
+      for (;;) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        parser.feed(decoder.decode(chunk.value, { stream: true }));
+      }
+      parser.feed(decoder.decode());
+      if (transcriptionError) throw new Error(transcriptionError);
+      if (!completed || !transcript.trim()) throw new Error("Transcription முழுமையடையவில்லை. மீண்டும் முயற்சி செய்யவும்.");
     }
-    parser.feed(decoder.decode());
-    if (transcriptionError) throw new Error(transcriptionError);
-    if (!completed || !transcript.trim()) throw new Error("Transcription முழுமையடையவில்லை. மீண்டும் முயற்சி செய்யவும்.");
 
     update(leadId, { status: "analysing", transcript, error: "" });
     const analysisResponse = await postWithCapacityRetry("/api/analyse", {
