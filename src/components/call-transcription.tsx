@@ -1,115 +1,55 @@
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { createParser } from "eventsource-parser";
-import { Upload, FileAudio, Loader2, Copy, Download, X, Check, AlertCircle } from "lucide-react";
+import { Copy, Download, Loader2, Check, AlertCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConversationReports } from "@/components/conversation-reports";
-import { ACCEPT_ATTR, formatBytes, friendlyTranscriptionError, validateAudioFile } from "@/lib/audio-limits";
-import { destinationHeaders } from "@/lib/workspace-attacher";
+import { startAudioProcessing, getAudioProcessingState, subscribeAudioProcessing } from "@/lib/audio-processing";
+import { getLeadReport } from "@/lib/workspace.functions";
+import { validateReport, type ConversationReport } from "@/lib/conversation-report";
 
 export function CallTranscription({ leadId, savedAudioName, autoStart = false }: { leadId: string; savedAudioName: string; autoStart?: boolean }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [audioPath, setAudioPath] = useState("");
+  const processing = useSyncExternalStore(
+    subscribeAudioProcessing,
+    () => getAudioProcessingState(leadId),
+    () => null,
+  );
+  const [savedTranscript, setSavedTranscript] = useState("");
+  const [savedReport, setSavedReport] = useState<ConversationReport | null>(null);
   const [copied, setCopied] = useState(false);
-  const [completed, setCompleted] = useState(false);
 
-  function pick(f: File | undefined) {
-    if (!f) return;
-    const err = validateAudioFile(f);
-    setTranscript("");
-    setCompleted(false);
-    if (err) {
-      setFile(null);
-      setError(err);
+  useEffect(() => {
+    if (autoStart) {
+      startAudioProcessing(leadId, savedAudioName);
       return;
     }
-    setError(null);
-    setFile(f);
-  }
+    let active = true;
+    void getLeadReport({ data: { id: leadId } }).then(result => {
+      if (!active) return;
+      setSavedTranscript(result.transcript);
+      setSavedReport(validateReport(result.report, result.transcript) as ConversationReport);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [autoStart, leadId, savedAudioName]);
 
-  const started = useRef(false);
-  useEffect(() => { if (autoStart && !started.current) { started.current = true; void transcribe(true); } }, [autoStart]);
-
-  async function transcribe(autoRetry = false) {
-    started.current = true;
-    setLoading(true);
-    setCompleted(false);
-    setError(null);
-    setTranscript("");
-    try {
-      const fd = new FormData();
-      fd.append("leadId", leadId);
-      let res: Response | null = null;
-      for (let attempt = 0; attempt < (autoRetry ? 3 : 1); attempt++) {
-        res = await fetch("/api/transcribe", { method: "POST", headers: await destinationHeaders(), body: fd });
-        if (res.ok && res.body) break;
-        const j = await res.clone().json().catch(() => null);
-        const message = j?.error ?? `Transcription failed (${res.status}).`;
-        const isTemporaryCapacityError = res.status === 503 && /Gemini API request limit|அதிக traffic|high demand|temporarily unavailable|resource exhausted/i.test(message);
-        if (!autoRetry || !isTemporaryCapacityError || attempt === 2) {
-          throw new Error(message);
-        }
-        const delayMs = attempt === 0 ? 15000 : 30000;
-        setError(`Gemini server busy. ${Math.round(delayMs / 1000)} seconds கழித்து தானாக மீண்டும் முயற்சி செய்கிறோம்…`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-      }
-      if (!res?.ok || !res.body) throw new Error("Transcription failed. Please try again.");
-      setAudioPath(res.headers.get("X-Audio-Path") ?? "");
-      let text = "";
-      let done = false;
-      let streamErr: string | null = null;
-      const parser = createParser({
-        onEvent(ev) {
-          try {
-            const d = JSON.parse(ev.data);
-            if (d.type === "transcript.text.delta" && d.delta) {
-              text += d.delta;
-              setTranscript(text);
-            } else if (d.type === "transcript.text.done") {
-              text = d.text ?? text;
-              done = true;
-              setTranscript(text);
-            } else if (d.type === "error" || d.error) {
-              streamErr = d.error?.message ?? d.message ?? "Transcription failed.";
-            }
-          } catch {}
-        },
-      });
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      for (;;) {
-        const { value, done: rd } = await reader.read();
-        if (rd) break;
-        parser.feed(dec.decode(value, { stream: true }));
-      }
-      if (streamErr) throw new Error(friendlyTranscriptionError(streamErr));
-      if (!done) throw new Error("Transcription ended unexpectedly. Please try again.");
-      if (!text.trim()) throw new Error("No speech was detected in this recording.");
-      setCompleted(true);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Transcription failed.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const transcript = processing?.transcript || savedTranscript;
+  const report = processing?.report ?? savedReport;
+  const loading = processing?.status === "transcribing" || processing?.status === "analysing";
+  const error = processing?.status === "error" ? processing.error : "";
 
   async function copy() {
+    if (!transcript) return;
     await navigator.clipboard.writeText(transcript);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    window.setTimeout(() => setCopied(false), 1500);
   }
 
   function download() {
+    if (!transcript) return;
     const blob = new Blob([transcript], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = (file?.name.replace(/\.[^.]+$/, "") ?? "transcript") + "-transcript.txt";
+    a.download = `${savedAudioName.replace(/\\.[^.]+$/, "")}-transcript.txt`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -119,74 +59,26 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
       <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-between gap-3"><p className="eyebrow">Call analysis</p><Link to="/reports" className="text-sm underline">சேமித்த reports</Link></div>
         <h1 className="font-display mt-2 text-4xl sm:text-5xl">AI Call Transcription</h1>
-        <p className="mt-3 text-muted-foreground">
-          Upload a recorded client call. Tamil, Tanglish and English are kept as spoken — no translation.
-        </p>
+        <p className="mt-3 text-muted-foreground">Tamil, Tanglish and English are kept as spoken — no translation.</p>
 
-        <section className="panel mt-10 p-6 sm:p-8">
-          <div className="hidden"
-            role="button"
-            tabIndex={0}
-            onClick={() => inputRef.current?.click()}
-            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              pick(e.dataTransfer.files?.[0]);
-            }}
-            data-active={dragging}
-          >
-            <Upload className="h-8 w-8 text-primary" />
-            <p className="mt-3 font-medium">Drag & drop an audio file here</p>
-            <p className="text-sm text-muted-foreground">Any audio format, including AMR · Gemini transcription up to 14 MB</p>
-            <Button type="button" variant="outline" className="mt-4" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}>
-              Select Audio File
-            </Button>
-            <input
-              ref={inputRef}
-              type="file"
-              accept={ACCEPT_ATTR}
-              className="hidden"
-              onChange={(e) => {
-                pick(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
+        <section className="panel mt-8 p-6 sm:p-8">
+          <div className="flex items-center gap-3">
+            {loading ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : error ? <AlertCircle className="h-5 w-5 text-destructive" /> : <Check className="h-5 w-5 text-primary" />}
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{savedAudioName}</p>
+              <p role="status" className="text-sm text-muted-foreground">
+                {processing?.status === "transcribing" ? "Audio transcription தானாக நடைபெறுகிறது…" :
+                  processing?.status === "analysing" ? "Transcript முடிந்தது. AI analysis மற்றும் report தயாராகிறது…" :
+                  processing?.status === "completed" || report ? "Transcription மற்றும் AI report முடிந்தது." :
+                  error || "Audio processing status ஏற்றப்படுகிறது…"}
+              </p>
+            </div>
+            {error && <Button size="sm" variant="outline" onClick={() => startAudioProcessing(leadId, savedAudioName)}><RotateCcw className="h-4 w-4" /> Retry</Button>}
           </div>
-
-          {file && (
-            <div className="mt-5 flex items-center gap-3 rounded-lg bg-secondary px-4 py-3">
-              <FileAudio className="h-5 w-5 shrink-0 text-primary" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{file.name}</p>
-                <p className="text-sm text-muted-foreground">{formatBytes(file.size)}</p>
-              </div>
-              <button aria-label="Remove file" disabled={loading} onClick={() => { setFile(null); setTranscript(""); setCompleted(false); }} className="text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <div role="alert" className="mt-5 flex gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <p className="text-sm text-muted-foreground">{savedAudioName}</p>
-          <Button className="mt-6 w-full" size="lg" disabled={loading} onClick={transcribe}>
-            {loading ? (<><Loader2 className="h-4 w-4 animate-spin" /> Transcribing…</>) : "Transcribe Audio"}
-          </Button>
         </section>
 
         {(transcript || loading) && (
-          <section className="panel mt-8 p-6 sm:p-8">
+          <section className="panel mt-6 p-6 sm:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-display text-2xl">Transcript</h2>
               <div className="flex gap-2">
@@ -203,7 +95,8 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
             </div>
           </section>
         )}
-        {completed && !loading && <ConversationReports key={transcript} transcript={transcript} filename={savedAudioName} audioPath={audioPath} leadId={leadId} autoStart={autoStart} />}
+        {report && <ConversationReports key={leadId} transcript={transcript} filename={savedAudioName} leadId={leadId} initialReport={report} />}
+        {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
       </div>
     </main>
   );
