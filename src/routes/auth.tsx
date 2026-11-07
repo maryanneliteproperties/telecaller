@@ -122,7 +122,8 @@ function AuthPage() {
           </form>
         </section>
 
-        <a
+        {!isNativeApp && (
+          <a
           href={ANDROID_DOWNLOAD_URL}
           className="mt-4 flex w-full items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-card/90 p-4 shadow-sm transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
@@ -136,12 +137,9 @@ function AuthPage() {
             </span>
           </span>
           <Download className="h-5 w-5 shrink-0 text-primary" />
-        </a>
+          </a>
+        )}
         <p className="mt-3 text-center text-xs text-muted-foreground">Secure team access · Your CRM data stays in the existing workspace</p>
-      </div>
-    </main>
-  );
-}        {!isNativeApp && (\n        )}\n        <p className="mt-3 text-center text-xs text-muted-foreground">Secure team access · Your CRM data stays in the existing workspace</p>
       </div>
     </main>
   );
