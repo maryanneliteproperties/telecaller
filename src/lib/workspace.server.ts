@@ -59,3 +59,14 @@ export async function readLead(id: string, identity: WorkspaceIdentity) {
   if (!canReadLead(identity, data.owner_id ?? null)) throw new Error("இந்த lead-க்கு அனுமதி இல்லை.");
   return data;
 }
+
+export async function recordWorkspaceActivity(identity: WorkspaceIdentity, input: {
+  action: string; entityType: string; entityId?: string | null; entityLabel?: string | null; details?: Record<string, unknown>;
+}) {
+  const { error } = await workspaceAdmin().from("workspace_activity_history").insert({
+    actor_id: identity.id, actor_name: identity.username, actor_role: identity.role,
+    action: input.action, entity_type: input.entityType, entity_id: input.entityId ?? null,
+    entity_label: input.entityLabel ?? null, details: input.details ?? {},
+  });
+  if (error) console.error("[activity-history] insert failed", { code: error.code, message: error.message });
+}
