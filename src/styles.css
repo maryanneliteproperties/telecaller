@@ -170,3 +170,13 @@
 
 
 @layer base { html, body, #root { width: 100%; max-width: 100%; overflow-x: clip; } }
+
+
+/* Native Android WebView: keep table swipes smooth without blocking vertical page scrolling. */
+.mobile-table-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+}
