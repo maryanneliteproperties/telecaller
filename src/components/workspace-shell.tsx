@@ -17,14 +17,14 @@ const PAGE_TITLES: Array<[prefix: string, title: string]> = [
   ["/employees", "Employees"],
   ["/leads", "Leads"],
   ["/reports", "Reports"],
-  ["/", "New Lead"],
+  ["/new_leads", "New Lead"],
 ];
 
 export function WorkspaceShell({ identity, children }: { identity: WorkspaceIdentity; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false), [mobileOpen, setMobileOpen] = useState(false);
   const path = useRouterState({ select: r => r.location.pathname });
   const navigate = useNavigate(), queryClient = useQueryClient(), logout = useServerFn(logoutWorkspace);
-  const items = [{ title: "New Lead", to: "/" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Follow Ups", to: "/follow-ups" as const, icon: CalendarDays }, { title: "Site Visit", to: "/site-visits" as const, icon: MapPin }, { title: "Call Reports", to: "/reports" as const, icon: FileText }];
+  const items = [{ title: "New Lead", to: "/new_leads" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Follow Ups", to: "/follow-ups" as const, icon: CalendarDays }, { title: "Site Visit", to: "/site-visits" as const, icon: MapPin }, { title: "Call Reports", to: "/reports" as const, icon: FileText }];
   const pageTitle = PAGE_TITLES.find(([prefix]) => path === prefix || (prefix !== "/" && path.startsWith(prefix)))?.[1] ?? "Home";
   async function signOut() {
     await queryClient.cancelQueries(); queryClient.clear();
@@ -33,13 +33,13 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
   }
   const nav = (compact: boolean) => <>
     <div className="flex h-20 shrink-0 items-center justify-between gap-2 border-b border-sidebar-border px-4">
-      <Link to="/" aria-label="AI Call workspace" onClick={() => setMobileOpen(false)} className="flex min-w-0 items-center gap-3">
+      <Link to="/dashboard" aria-label="AI Call workspace" onClick={() => setMobileOpen(false)} className="flex min-w-0 items-center gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#8245EF] to-[#D43BCB] text-white shadow-sm"><Building2 className="h-5 w-5" /></span>
         {!compact && <span className="text-sm font-semibold leading-tight">Mary Ann Elite<span className="block text-xs font-normal text-sidebar-foreground/75">Properties</span></span>}
       </Link>
       <Button type="button" variant="ghost" size="icon" aria-label="Close sidebar" title="Close sidebar" className="shrink-0 text-sidebar-foreground hover:bg-sidebar-accent min-[1200px]:hidden" onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></Button>
     </div>
-    <nav className="flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-3 pb-8 pt-8" aria-label="Main menu">{[...(identity.role === "admin" ? [{ title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard }] : []), ...items, ...(identity.role === "admin" ? [{ title: "Projects", to: "/projects" as const, icon: FolderKanban }, { title: "Employees", to: "/employees" as const, icon: ShieldCheck }] : [])].map(item => <Button key={item.title} asChild variant="ghost" className={`min-h-12 w-full justify-start rounded-xl px-3 py-3 text-[15px] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === item.to || (item.to !== "/" && path.startsWith(item.to)) ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title={item.title}><Link to={item.to} onClick={() => setMobileOpen(false)}><item.icon />{!compact && <span>{item.title}</span>}</Link></Button>)}</nav>
+    <nav className="flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-3 pb-8 pt-8" aria-label="Main menu">{[{ title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard }, ...items, ...(identity.role === "admin" ? [{ title: "Projects", to: "/projects" as const, icon: FolderKanban }, { title: "Employees", to: "/employees" as const, icon: ShieldCheck }] : [])].map(item => <Button key={item.title} asChild variant="ghost" className={`min-h-12 w-full justify-start rounded-xl px-3 py-3 text-[15px] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === item.to || (item.to !== "/" && path.startsWith(item.to)) ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title={item.title}><Link to={item.to} onClick={() => setMobileOpen(false)}><item.icon />{!compact && <span>{item.title}</span>}</Link></Button>)}</nav>
   </>;
   return <div className="flex min-h-screen w-full min-w-0 overflow-x-clip">
     <aside className={`${collapsed ? "w-16" : "w-60"} sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground min-[1200px]:flex`}>{nav(collapsed)}</aside>

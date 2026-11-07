@@ -1,7 +1,7 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { getWorkspaceIdentity, listLeads, listAvailableProjects } from "@/lib/workspace.functions";
+import { listLeads, listAvailableProjects } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
 import { CalendarClock, CalendarDays, Clock3, Users, UserPlus, MapPin, ArrowUpRight, Phone, CheckCircle2 } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts";
@@ -10,7 +10,6 @@ const leadsOptions = queryOptions({ queryKey: ["workspace", "leads"], queryFn: (
 const projectsOptions = queryOptions({ queryKey: ["workspace", "projects"], queryFn: () => listAvailableProjects() });
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  beforeLoad: async () => { const identity = await getWorkspaceIdentity(); if (identity?.role !== "admin") throw redirect({ to: "/" }); },
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(leadsOptions),
@@ -91,7 +90,7 @@ function DashboardPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" className="border-indigo-200 bg-white shadow-sm"><Link to="/follow-ups">View Follow-ups <ArrowUpRight className="ml-1 h-4 w-4" /></Link></Button>
-            <Button asChild className="bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-700"><Link to="/">+ New Lead</Link></Button>
+            <Button asChild className="bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-700"><Link to="/new_leads">+ New Lead</Link></Button>
           </div>
         </div>
 
