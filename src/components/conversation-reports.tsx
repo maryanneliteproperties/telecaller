@@ -7,8 +7,8 @@ import { DetailedReport } from "@/components/detailed-report";
 import { DEFAULT_INTENT_WEIGHTS, MISSING_REPORT_INFO, compactReport, validateReport, reportText, type ConversationReport } from "@/lib/conversation-report";
 import { destinationHeaders } from "@/lib/workspace-attacher";
 
-export function ConversationReports({ transcript, filename, audioPath, leadId, autoStart = false }: { transcript: string; filename: string; audioPath?: string; leadId?: string; autoStart?: boolean }) {
-  const [report, setReport] = useState<ConversationReport | null>(null);
+export function ConversationReports({ transcript, filename, audioPath, leadId, autoStart = false, initialReport = null }: { transcript: string; filename: string; audioPath?: string; leadId?: string; autoStart?: boolean; initialReport?: ConversationReport | null }) {
+  const [report, setReport] = useState<ConversationReport | null>(initialReport);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("performance");
