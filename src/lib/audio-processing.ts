@@ -42,46 +42,6 @@ function update(leadId: string, patch: Partial<AudioProcessingState>) {
   publish();
 }
 
-function parseEventStream<T>(response: Response, onEvent: (event: Record<string, unknown>) => void) {
-  return new Promise<T>((resolve, reject) => {
-    if (!response.body) {
-      reject(new Error("Server response empty-ஆக உள்ளது."));
-      return;
-    }
-    let streamError = "";
-    let result: T | undefined;
-    const parser = createParser({
-      onEvent(event) {
-        try {
-          const data = JSON.parse(event.data) as Record<string, unknown>;
-          if (data.type === "error") streamError = String(data.error ?? data.message ?? "Processing failed.");
-          onEvent(data);
-        } catch {
-          // Ignore non-JSON keep-alive events.
-        }
-      },
-    });
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    void (async () => {
-      try {
-        for (;;) {
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          parser.feed(decoder.decode(chunk.value, { stream: true }));
-        }
-        parser.feed(decoder.decode());
-        if (streamError) throw new Error(streamError);
-        resolve(result as T);
-      } catch (error) {
-        reject(error);
-      }
-    })();
-    // The caller stores the final payload through the event callback.
-    void result;
-  });
-}
-
 async function responseError(response: Response) {
   const body = await response.clone().text().catch(() => "");
   try {
@@ -96,7 +56,7 @@ function shouldRetry(status: number, message: string) {
   return (status === 429 || status === 503) && !/daily quota|தினசரி.*quota|requests per day|per day.*free tier|daily limit/i.test(message);
 }
 
-async function postWithCapacityRetry(url: string, init: RequestInit, stage: "transcription" | "analysis") {
+async function postWithCapacityRetry(url: string, init: RequestInit) {
   let response: Response | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     response = await fetch(url, init);
@@ -104,15 +64,10 @@ async function postWithCapacityRetry(url: string, init: RequestInit, stage: "tra
     const message = await responseError(response);
     if (!shouldRetry(response.status, message) || attempt === 2) throw new Error(message);
     const delay = attempt === 0 ? 15000 : 30000;
-    updateStageMessage(init, stage, `Gemini service busy. ${delay / 1000} seconds கழித்து மீண்டும் முயற்சி செய்கிறோம்…`);
     await new Promise(resolve => setTimeout(resolve, delay));
   }
   throw new Error(response ? await responseError(response) : "Processing failed.");
 }
-
-// Kept as a no-op hook point so retry messaging can be updated without coupling
-// the processor to a particular route component.
-function updateStageMessage(_init: RequestInit, _stage: "transcription" | "analysis", _message: string) {}
 
 async function run(leadId: string, filename: string) {
   try {
@@ -123,10 +78,11 @@ async function run(leadId: string, filename: string) {
       method: "POST",
       headers: await destinationHeaders(),
       body: form,
-    }, "transcription");
+    });
 
     let transcript = "";
     let completed = false;
+    let transcriptionError = "";
     const parser = createParser({
       onEvent(event) {
         try {
@@ -136,10 +92,8 @@ async function run(leadId: string, filename: string) {
             transcript = data.text ?? transcript;
             completed = true;
           }
-          if (data.type === "error" || data.error) throw new Error(data.error?.message ?? data.message ?? "Transcription failed.");
-        } catch (error) {
-          if (error instanceof Error && error.message !== "Unexpected end of JSON input") throw error;
-        }
+          if (data.type === "error" || data.error) transcriptionError = data.error?.message ?? data.message ?? "Transcription failed.";
+        } catch {}
       },
     });
     const reader = transcribeResponse.body?.getReader();
@@ -151,6 +105,7 @@ async function run(leadId: string, filename: string) {
       parser.feed(decoder.decode(chunk.value, { stream: true }));
     }
     parser.feed(decoder.decode());
+    if (transcriptionError) throw new Error(transcriptionError);
     if (!completed || !transcript.trim()) throw new Error("Transcription முழுமையடையவில்லை. மீண்டும் முயற்சி செய்யவும்.");
 
     update(leadId, { status: "analysing", transcript, error: "" });
@@ -158,18 +113,17 @@ async function run(leadId: string, filename: string) {
       method: "POST",
       headers: { "Content-Type": "application/json", ...await destinationHeaders() },
       body: JSON.stringify({ transcript, audioName: filename, leadId }),
-    }, "analysis");
+    });
 
     let finalReport: unknown = null;
+    let analysisError = "";
     const analysisParser = createParser({
       onEvent(event) {
         try {
           const data = JSON.parse(event.data);
           if (data.type === "report") finalReport = data.report;
-          if (data.type === "error") throw new Error(data.error ?? "Analysis failed.");
-        } catch (error) {
-          if (error instanceof Error && error.message !== "Unexpected end of JSON input") throw error;
-        }
+          if (data.type === "error") analysisError = String(data.error ?? "Analysis failed.");
+        } catch {}
       },
     });
     const analysisReader = analysisResponse.body?.getReader();
@@ -181,6 +135,7 @@ async function run(leadId: string, filename: string) {
       analysisParser.feed(analysisDecoder.decode(chunk.value, { stream: true }));
     }
     analysisParser.feed(analysisDecoder.decode());
+    if (analysisError) throw new Error(analysisError);
     if (!finalReport) throw new Error("AI report முழுமையடையவில்லை. மீண்டும் முயற்சி செய்யவும்.");
     const report = validateReport(finalReport, transcript) as ConversationReport;
     update(leadId, { status: "completed", transcript, report, error: "" });
