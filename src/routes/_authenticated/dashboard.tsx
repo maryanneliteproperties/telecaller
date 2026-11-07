@@ -59,7 +59,7 @@ function DashboardPage() {
       const status = row.conversion_follow_up_status || "Pending";
       return !!date && date >= today && status !== "Completed" && status !== "Not Interested";
     }).map(row => ({ id: row.id, date: followupDate(row, "booking")!, customer: row.customer_name || "—", phone: row.customer_phone || "—", project: projectNames.get(row.project_id || "") || "—", telecaller: row.telecaller_name || "—", status: row.conversion_follow_up_status || "Pending" }))
-      .sort((a,b) => a.date.localeCompare(b.date)).slice(0, 10);
+      .sort((a,b) => a.date.localeCompare(b.date));
     const statusCounts = ["Pending", "Completed", "Rescheduled", "Not Interested"].map(status => ({
       name: status,
       value: visibleLeads.reduce((sum, row) => sum + Number(row.follow_up_status === status) + Number(row.conversion_follow_up_status === status), 0),
