@@ -170,3 +170,13 @@
 
 
 @layer base { html, body, #root { width: 100%; max-width: 100%; overflow-x: clip; } }
+
+
+/* Native Android WebView: allow both page and table touch gestures. */
+.mobile-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
