@@ -182,13 +182,39 @@
 }
 
 
-/* Dashboard tables: keep five rows visible, allow vertical scrolling without a visible scrollbar. */
-.dashboard-table-vertical {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/* Dashboard tables: modern, visible two-axis scrollbars on desktop and Android WebView. */
+.mobile-table-scroll.dashboard-table-vertical {
+  overflow-x: auto;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.68 0.08 275 / 0.72) oklch(0.94 0.018 275);
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
 }
-.dashboard-table-vertical::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+
+.mobile-table-scroll.dashboard-table-vertical::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.mobile-table-scroll.dashboard-table-vertical::-webkit-scrollbar-track {
+  background: oklch(0.95 0.015 275);
+  border-radius: 999px;
+  margin: 3px;
+}
+
+.mobile-table-scroll.dashboard-table-vertical::-webkit-scrollbar-thumb {
+  background: oklch(0.68 0.08 275 / 0.72);
+  border: 2px solid oklch(0.95 0.015 275);
+  border-radius: 999px;
+}
+
+.mobile-table-scroll.dashboard-table-vertical::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.54 0.14 275 / 0.9);
+}
+
+.mobile-table-scroll.dashboard-table-vertical::-webkit-scrollbar-corner {
+  background: oklch(0.95 0.015 275);
 }
