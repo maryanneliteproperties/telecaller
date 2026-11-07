@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { listLeads, listAvailableProjects } from "@/lib/workspace.functions";
+import { getWorkspaceIdentity, listLeads, listAvailableProjects } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
 import { CalendarClock, CalendarDays, Clock3, Users, UserPlus, MapPin, ArrowUpRight, Phone, CheckCircle2 } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts";
@@ -10,6 +10,7 @@ const leadsOptions = queryOptions({ queryKey: ["workspace", "leads"], queryFn: (
 const projectsOptions = queryOptions({ queryKey: ["workspace", "projects"], queryFn: () => listAvailableProjects() });
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  beforeLoad: async () => { const identity = await getWorkspaceIdentity(); if (identity?.role !== "admin") throw redirect({ to: "/" }); },
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(leadsOptions),
@@ -52,7 +53,7 @@ function DashboardPage() {
       const status = row.follow_up_status || "Pending";
       return !!date && date >= today && status !== "Completed" && status !== "Not Interested";
     }).map(row => ({ id: row.id, date: followupDate(row, "site")!, customer: row.customer_name || "—", phone: row.customer_phone || "—", project: projectNames.get(row.project_id || "") || "—", telecaller: row.telecaller_name || "—", status: row.follow_up_status || "Pending" }))
-      .sort((a,b) => a.date.localeCompare(b.date)).slice(0, 10);
+      .sort((a,b) => a.date.localeCompare(b.date));
     const bookingSchedule = visibleLeads.filter(row => {
       const date = followupDate(row, "booking");
       const status = row.conversion_follow_up_status || "Pending";
@@ -114,12 +115,12 @@ function DashboardPage() {
         <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
           <div className="min-w-0 space-y-5">
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_35px_-20px_rgba(30,41,59,0.35)] sm:p-6">
-              <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Site Visit Schedule Follow-ups</h2><p className="mt-1 text-xs text-slate-500">Next 10 pending site visit follow-ups</p></div><MapPin className="h-5 w-5 text-rose-500" /></div>
-              <div className="mobile-table-scroll w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain rounded-lg"><table className="w-full min-w-[600px] text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-slate-400"><th className="px-3 py-3">Date</th><th className="px-3 py-3">Customer</th><th className="px-3 py-3">Project</th><th className="px-3 py-3">Telecaller</th><th className="px-3 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{metrics.siteSchedule.map(item=><tr key={item.id} className="transition hover:bg-rose-50/50"><td className="whitespace-nowrap px-3 py-3 font-semibold text-rose-700">{displayDate(item.date)}</td><td className="px-3 py-3"><div className="font-semibold text-slate-800">{item.customer}</div><div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400"><Phone className="h-3 w-3" />{item.phone}</div></td><td className="px-3 py-3 text-slate-600">{item.project}</td><td className="px-3 py-3 text-slate-600">{item.telecaller}</td><td className="px-3 py-3"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.status}</span></td></tr>)}</tbody></table>{metrics.siteSchedule.length===0&&<div className="py-10 text-center text-sm text-slate-400">No pending site visit follow-ups scheduled.</div>}</div>
+              <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Site Visit Schedule Follow-ups</h2><p className="mt-1 text-xs text-slate-500">Showing {Math.min(5, metrics.siteSchedule.length)} of {metrics.siteSchedule.length} · {metrics.siteSchedule.length > 5 ? "Scroll inside to view more" : "All pending follow-ups"}</p></div><MapPin className="h-5 w-5 text-rose-500" /></div>
+              <div className="mobile-table-scroll dashboard-table-vertical max-h-[370px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto overscroll-x-contain rounded-lg"><table className="w-full min-w-[600px] text-left text-sm"><thead className="sticky top-0 z-10 bg-white"><tr className="border-b text-xs uppercase tracking-wide text-slate-400"><th className="px-3 py-3">Date</th><th className="px-3 py-3">Customer</th><th className="px-3 py-3">Project</th><th className="px-3 py-3">Telecaller</th><th className="px-3 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{metrics.siteSchedule.map(item=><tr key={item.id} className="transition hover:bg-rose-50/50"><td className="whitespace-nowrap px-3 py-3 font-semibold text-rose-700">{displayDate(item.date)}</td><td className="px-3 py-3"><div className="font-semibold text-slate-800">{item.customer}</div><div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400"><Phone className="h-3 w-3" />{item.phone}</div></td><td className="px-3 py-3 text-slate-600">{item.project}</td><td className="px-3 py-3 text-slate-600">{item.telecaller}</td><td className="px-3 py-3"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.status}</span></td></tr>)}</tbody></table>{metrics.siteSchedule.length===0&&<div className="py-10 text-center text-sm text-slate-400">No pending site visit follow-ups scheduled.</div>}</div>
             </div>
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_35px_-20px_rgba(30,41,59,0.35)] sm:p-6">
-              <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Booking Conversion Follow-ups</h2><p className="mt-1 text-xs text-slate-500">Next 10 pending booking conversion follow-ups</p></div><CalendarClock className="h-5 w-5 text-indigo-500" /></div>
-              <div className="mobile-table-scroll w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain rounded-lg"><table className="w-full min-w-[600px] text-left text-sm"><thead><tr className="border-b text-xs uppercase tracking-wide text-slate-400"><th className="px-3 py-3">Date</th><th className="px-3 py-3">Customer</th><th className="px-3 py-3">Project</th><th className="px-3 py-3">Telecaller</th><th className="px-3 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{metrics.bookingSchedule.map(item=><tr key={item.id} className="transition hover:bg-indigo-50/50"><td className="whitespace-nowrap px-3 py-3 font-semibold text-indigo-700">{displayDate(item.date)}</td><td className="px-3 py-3"><div className="font-semibold text-slate-800">{item.customer}</div><div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400"><Phone className="h-3 w-3" />{item.phone}</div></td><td className="px-3 py-3 text-slate-600">{item.project}</td><td className="px-3 py-3 text-slate-600">{item.telecaller}</td><td className="px-3 py-3"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.status}</span></td></tr>)}</tbody></table>{metrics.bookingSchedule.length===0&&<div className="py-10 text-center text-sm text-slate-400">No pending booking conversion follow-ups scheduled.</div>}</div>
+              <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Booking Conversion Follow-ups</h2><p className="mt-1 text-xs text-slate-500">Showing {Math.min(5, metrics.bookingSchedule.length)} of {metrics.bookingSchedule.length} · {metrics.bookingSchedule.length > 5 ? "Scroll inside to view more" : "All pending follow-ups"}</p></div><CalendarClock className="h-5 w-5 text-indigo-500" /></div>
+              <div className="mobile-table-scroll dashboard-table-vertical max-h-[370px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto overscroll-x-contain rounded-lg"><table className="w-full min-w-[600px] text-left text-sm"><thead className="sticky top-0 z-10 bg-white"><tr className="border-b text-xs uppercase tracking-wide text-slate-400"><th className="px-3 py-3">Date</th><th className="px-3 py-3">Customer</th><th className="px-3 py-3">Project</th><th className="px-3 py-3">Telecaller</th><th className="px-3 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{metrics.bookingSchedule.map(item=><tr key={item.id} className="transition hover:bg-indigo-50/50"><td className="whitespace-nowrap px-3 py-3 font-semibold text-indigo-700">{displayDate(item.date)}</td><td className="px-3 py-3"><div className="font-semibold text-slate-800">{item.customer}</div><div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400"><Phone className="h-3 w-3" />{item.phone}</div></td><td className="px-3 py-3 text-slate-600">{item.project}</td><td className="px-3 py-3 text-slate-600">{item.telecaller}</td><td className="px-3 py-3"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.status}</span></td></tr>)}</tbody></table>{metrics.bookingSchedule.length===0&&<div className="py-10 text-center text-sm text-slate-400">No pending booking conversion follow-ups scheduled.</div>}</div>
             </div>
           </div>
           <div className="grid min-w-0 gap-5 sm:grid-cols-2 xl:grid-cols-1">
@@ -140,7 +141,6 @@ function DashboardPage() {
             <Button asChild variant="outline" className="mt-4 w-full border-emerald-100"><Link to="/follow-ups">Open Follow-ups</Link></Button>
           </div>
         </section>
-        <p className="text-center text-xs text-slate-400">Dashboard data refreshes with your latest saved leads and schedules.</p>
       </div>
     </main>
   );
