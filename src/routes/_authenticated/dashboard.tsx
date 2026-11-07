@@ -94,7 +94,9 @@ function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2"><label htmlFor="dashboard-project" className="text-sm font-medium text-slate-600">Project</label><select id="dashboard-project" className="h-10 min-w-52 rounded-md border border-slate-200 bg-white px-3 text-sm" value={selectedProject} onChange={event => setSelectedProject(event.target.value)}><option value="all">All Projects</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></div>\n\n        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Dashboard metrics">
+        <div className="flex flex-wrap items-center gap-2"><label htmlFor="dashboard-project" className="text-sm font-medium text-slate-600">Project</label><select id="dashboard-project" className="h-10 min-w-52 rounded-md border border-slate-200 bg-white px-3 text-sm" value={selectedProject} onChange={event => setSelectedProject(event.target.value)}><option value="all">All Projects</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></div>
+
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Dashboard metrics">
           {cards.map((card) => {
             const Icon = card.icon;
             return <div key={card.label} className={`group relative overflow-hidden rounded-2xl border border-white/80 bg-gradient-to-br ${card.gradient} p-5 text-white shadow-xl ${card.glow} transition duration-300 hover:-translate-y-1 hover:shadow-2xl`}>
