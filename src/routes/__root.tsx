@@ -14,6 +14,7 @@ import { getDestinationClient } from "@/lib/destination-client";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { BackgroundAudioStatus } from "@/components/background-audio-status";
 
 function NotFoundComponent() {
   return (
@@ -141,6 +142,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <BackgroundAudioStatus />
       <Toaster position="top-right" duration={12000} richColors closeButton />
     </QueryClientProvider>
   );
