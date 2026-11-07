@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Headphones, ShieldCheck, UserRound, ArrowRight, Loader2, Download, Smartphone } from "lucide-react";
 import { getDestinationClient } from "@/lib/destination-client";
@@ -30,6 +30,12 @@ function AuthPage() {
   const adminLogin = useServerFn(loginAdmin);
   const employeeLogin = useServerFn(loginEmployee);
   const [mode, setMode] = useState<"employee" | "admin">("employee");
+  const [isNativeApp, setIsNativeApp] = useState(false);
+
+  useEffect(() => {
+    const capacitor = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+    setIsNativeApp(capacitor?.isNativePlatform?.() === true);
+  }, []);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
@@ -132,6 +138,10 @@ function AuthPage() {
           <Download className="h-5 w-5 shrink-0 text-primary" />
         </a>
         <p className="mt-3 text-center text-xs text-muted-foreground">Secure team access · Your CRM data stays in the existing workspace</p>
+      </div>
+    </main>
+  );
+}        {!isNativeApp && (\n        )}\n        <p className="mt-3 text-center text-xs text-muted-foreground">Secure team access · Your CRM data stays in the existing workspace</p>
       </div>
     </main>
   );
