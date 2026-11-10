@@ -233,6 +233,26 @@ export const getLeadReport = createServerFn({ method: "GET" }).inputValidator((v
   if (error || !row?.report) throw new Error("Report-ஐ ஏற்ற முடியல.");
   return { report: row.report, transcript: row.transcript ?? "", audioName: row.audio_name ?? lead.audio_name ?? "call", createdAt: row.created_at ?? null };
 });
+export const getLeadProcessingStatus = createServerFn({ method: "GET" }).inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v)).handler(async ({ data }) => {
+  const { requireWorkspace, readLead, workspaceAdmin } = await import("./workspace.server");
+  const identity = await requireWorkspace();
+  const lead = await readLead(data.id, identity);
+  const db = workspaceAdmin();
+  if (lead.call_report_id) {
+    const { data: saved, error } = await db.from("call_reports").select("report,transcript").eq("id", lead.call_report_id).maybeSingle();
+    if (error) throw new Error("Saved report status-ஐ ஏற்ற முடியல.");
+    if (saved?.report) return { status: "completed", stage: "completed", transcript: saved.transcript ?? "", report: saved.report, error: "" };
+  }
+  const { data: job, error } = await db.from("audio_processing_jobs").select("status,stage,transcript,last_error").eq("lead_id", data.id).maybeSingle();
+  if (error) throw new Error("Audio processing status-ஐ ஏற்ற முடியல. Durable audio SQL migration run செய்துள்ளீர்களா சரிபார்க்கவும்.");
+  return {
+    status: job?.status ?? (lead.processing_status === "analysed" ? "completed" : lead.processing_status === "failed" ? "failed" : "queued"),
+    stage: job?.stage ?? "transcribing",
+    transcript: job?.transcript ?? "",
+    report: null,
+    error: job?.last_error ?? "",
+  };
+});
 const SUMMARY_SECTIONS = [["introduction", "அறிமுகம் மற்றும் பேச்சுத்திறன்"], ["discovery", "வாடிக்கையாளர் தேவையை அறிதல்"], ["listening", "கவனமாகக் கேட்டல்"], ["explanation", "திட்டத்தை விளக்கும் திறன்"], ["objections", "எதிர்ப்புகளைக் கையாளுதல்"], ["closing", "Closing மற்றும் அடுத்த நடவடிக்கை"]] as const;
 export const getLeadSummary = createServerFn({ method: "GET" }).inputValidator((v: unknown) => z.object({ id: z.string().uuid() }).parse(v)).handler(async ({ data }) => {
   const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");

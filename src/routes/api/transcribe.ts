@@ -51,7 +51,11 @@ export const Route = createFileRoute("/api/transcribe")({
     handlers: {
       POST: async ({ request }) => {
         const { workspaceIdentity, readLead, workspaceAdmin } = await import("@/lib/workspace.server");
-        const identity = await workspaceIdentity(request);
+        const workerSecret = process.env["CRON_SECRET"];
+        const isWorkerRequest = !!workerSecret && request.headers.get("authorization") === `Bearer ${workerSecret}`;
+        const identity = isWorkerRequest
+          ? { id: "admin", username: "Audio worker", role: "admin" as const }
+          : await workspaceIdentity(request);
         if (!identity) return jsonError(401, "முதலில் login பண்ணுங்க.");
 
         // This route calls Google's Gemini API directly, so use a Google AI Studio key.

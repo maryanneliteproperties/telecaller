@@ -1,40 +1,57 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Copy, Download, Loader2, Check, AlertCircle, RotateCcw } from "lucide-react";
+import { Copy, Download, Loader2, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConversationReports } from "@/components/conversation-reports";
-import { startAudioProcessing, getAudioProcessingState, subscribeAudioProcessing } from "@/lib/audio-processing";
-import { getLeadReport } from "@/lib/workspace.functions";
+import { getLeadProcessingStatus } from "@/lib/workspace.functions";
 import { validateReport, type ConversationReport } from "@/lib/conversation-report";
 
-export function CallTranscription({ leadId, savedAudioName, autoStart = false }: { leadId: string; savedAudioName: string; autoStart?: boolean }) {
-  const processing = useSyncExternalStore(
-    subscribeAudioProcessing,
-    () => getAudioProcessingState(leadId),
-    () => null,
-  );
-  const [savedTranscript, setSavedTranscript] = useState("");
-  const [savedReport, setSavedReport] = useState<ConversationReport | null>(null);
+type DurableProcessingState = {
+  status: string;
+  stage: string;
+  transcript: string;
+  report: unknown;
+  error: string;
+};
+
+export function CallTranscription({ leadId, savedAudioName }: { leadId: string; savedAudioName: string }) {
+  const [state, setState] = useState<DurableProcessingState | null>(null);
+  const [statusError, setStatusError] = useState("");
   const [copied, setCopied] = useState(false);
 
+  // The server queue owns the work. This page only polls durable status, so
+  // refreshing or closing the browser never cancels transcription or analysis.
   useEffect(() => {
-    if (autoStart) {
-      startAudioProcessing(leadId, savedAudioName);
-      return;
-    }
     let active = true;
-    void getLeadReport({ data: { id: leadId } }).then(result => {
-      if (!active) return;
-      setSavedTranscript(result.transcript);
-      setSavedReport(validateReport(result.report, result.transcript) as ConversationReport);
-    }).catch(() => {});
-    return () => { active = false; };
-  }, [autoStart, leadId, savedAudioName]);
+    let timer: number | undefined;
+    const poll = async () => {
+      try {
+        const result = await getLeadProcessingStatus({ data: { id: leadId } });
+        if (!active) return;
+        setState(result);
+        setStatusError("");
+        if (result.status !== "completed" && result.status !== "failed") {
+          timer = window.setTimeout(() => void poll(), 5000);
+        }
+      } catch (error) {
+        if (!active) return;
+        setStatusError(error instanceof Error ? error.message : "Processing status ஏற்ற முடியல.");
+        timer = window.setTimeout(() => void poll(), 10000);
+      }
+    };
+    void poll();
+    return () => {
+      active = false;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [leadId]);
 
-  const transcript = processing?.transcript || savedTranscript;
-  const report = processing?.report ?? savedReport;
-  const loading = processing?.status === "transcribing" || processing?.status === "analysing";
-  const error = processing?.status === "error" ? processing.error : "";
+  const transcript = state?.transcript ?? "";
+  const report = state?.report ? validateReport(state.report, transcript) as ConversationReport : null;
+  const status = state?.status ?? "queued";
+  const stage = state?.stage ?? "transcribing";
+  const loading = status === "queued" || status === "processing";
+  const error = status === "failed" ? state?.error || "Audio processing முடியவில்லை." : statusError;
 
   async function copy() {
     if (!transcript) return;
@@ -54,6 +71,16 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
     URL.revokeObjectURL(url);
   }
 
+  const statusText = status === "completed" || report
+    ? "Transcription மற்றும் AI report முழுமையாக save ஆகிவிட்டது."
+    : status === "failed"
+      ? error
+      : status === "queued"
+        ? "Server queue-ல் உள்ளது. தானாக processing தொடங்கும்…"
+        : stage === "analysing"
+          ? "Transcript save ஆகிவிட்டது. AI analysis மற்றும் final report தயாராகிறது…"
+          : "Server-ல் audio transcription நடைபெறுகிறது…";
+
   return (
     <main className="min-h-screen px-4 py-12 sm:py-20">
       <div className="mx-auto max-w-2xl">
@@ -66,14 +93,8 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
             {loading ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : error ? <AlertCircle className="h-5 w-5 text-destructive" /> : <Check className="h-5 w-5 text-primary" />}
             <div className="min-w-0 flex-1">
               <p className="font-medium">{savedAudioName}</p>
-              <p role="status" className="text-sm text-muted-foreground">
-                {processing?.status === "transcribing" ? "Audio transcription தானாக நடைபெறுகிறது…" :
-                  processing?.status === "analysing" ? "Transcript முடிந்தது. AI analysis மற்றும் report தயாராகிறது…" :
-                  processing?.status === "completed" || report ? "Transcription மற்றும் AI report முடிந்தது." :
-                  error || "Audio processing status ஏற்றப்படுகிறது…"}
-              </p>
+              <p role="status" className="text-sm text-muted-foreground">{statusText}</p>
             </div>
-            {error && <Button size="sm" variant="outline" onClick={() => startAudioProcessing(leadId, savedAudioName)}><RotateCcw className="h-4 w-4" /> Retry</Button>}
           </div>
         </section>
 
@@ -82,16 +103,16 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-display text-2xl">Transcript</h2>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={!transcript || loading} onClick={copy}>
+                <Button variant="outline" size="sm" disabled={!transcript} onClick={copy}>
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy"}
                 </Button>
-                <Button variant="outline" size="sm" disabled={!transcript || loading} onClick={download}>
+                <Button variant="outline" size="sm" disabled={!transcript} onClick={download}>
                   <Download className="h-4 w-4" /> Download .txt
                 </Button>
               </div>
             </div>
             <div className="mt-4 max-h-[60vh] overflow-auto whitespace-pre-wrap leading-relaxed">
-              {transcript || <span className="text-muted-foreground">Audio-வை text-ஆக மாற்றுகிறது… நீளமான recording-க்கு நேரம் ஆகலாம்.</span>}
+              {transcript || <span className="text-muted-foreground">Audio server-ல் text-ஆக மாற்றப்படுகிறது… நீளமான recording-க்கு நேரம் ஆகலாம்.</span>}
             </div>
           </section>
         )}
