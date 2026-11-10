@@ -9,7 +9,7 @@ Every file is idempotent (safe to run more than once).
    owner/admin read policies, and the extra workspace columns
    (`owner_id`, `submission_key`, `processing_status`).
 
-After the SQL: create the private `call-audio` storage bucket through the
+Before enabling the scheduled worker, add a strong `CRON_SECRET` environment variable to Vercel Production and Preview. Vercel Cron sends this value as an Authorization Bearer token.\n\nAfter the SQL: create the private `call-audio` storage bucket through the
 Storage API (not SQL) — the app's audio upload needs it.
 
 `destination-data.json` in project backups is an exported data snapshot,
