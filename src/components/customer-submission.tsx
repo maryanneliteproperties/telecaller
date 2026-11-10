@@ -9,6 +9,7 @@ import { customerSchema } from "@/lib/workspace-schema";
 import { ACCEPT_ATTR, formatBytes, validateAudioFile, MAX_AUDIO_BYTES } from "@/lib/audio-limits";
 import { convertAudioForPlayback } from "@/lib/audio-playback";
 import { listAvailableProjects, submitLead } from "@/lib/workspace.functions";
+import { startAudioProcessing } from "@/lib/audio-processing";
 
 export function CustomerSubmission() {
   const save = useServerFn(submitLead), loadProjects = useServerFn(listAvailableProjects), router = useRouter(), navigate = useNavigate();
@@ -37,7 +38,7 @@ export function CustomerSubmission() {
       }
       setBusyStatus("Audio மற்றும் customer விவரங்களைச் சேமிக்கிறேன்…");
       const form = new FormData(); form.set("customerName", parsed.data.customerName); form.set("customerPhone", parsed.data.customerPhone); form.set("submissionKey", parsed.data.submissionKey); form.set("followUpDate", parsed.data.followUpDate); form.set("leadStage", parsed.data.leadStage); if (parsed.data.projectId) form.set("projectId", parsed.data.projectId); form.set("file", uploadFile);
-      const result = await save({ data: form }); setSavedId(result.id); await router.invalidate(); await navigate({ to: "/leads/$id", params: { id: result.id } });
+      const result = await save({ data: form }); setSavedId(result.id); startAudioProcessing(result.id, file.name); await router.invalidate(); await navigate({ to: "/leads/$id", params: { id: result.id } });
     } catch (e) { setError(e instanceof Error ? e.message : "சேமிக்க முடியல. மீண்டும் முயற்சி பண்ணுங்க."); }
     finally { busyRef.current = false; setBusy(false); setBusyStatus(""); }
   }
