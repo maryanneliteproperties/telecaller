@@ -4,10 +4,5 @@
       "path": "/api/audio-worker",
       "schedule": "* * * * *"
     }
-  ],
-  "functions": {
-    "src/routes/api/audio-worker.ts": {
-      "maxDuration": 300
-    }
-  }
+  ]
 }
