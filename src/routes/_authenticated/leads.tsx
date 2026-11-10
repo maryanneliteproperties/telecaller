@@ -109,14 +109,14 @@ export function LeadsPage({ identity, compact = false }: { identity: { role: "ad
   const stats = useMemo(() => {
     const analysed = data.filter(row => row.overall_score !== null);
     const noInfo = data.filter(row => row.overall_score === null && isLeadAnalysisComplete(row)).length;
-    return { total: data.length, pending: data.length - analysed.length, noInfo, average: analysed.length ? Math.round(analysed.reduce((sum, row) => sum + (row.overall_score ?? 0), 0) / analysed.length) : null };
+    return { total: data.length, pending: data.filter(row => row.overall_score === null && !isLeadAnalysisComplete(row)).length, noInfo, average: analysed.length ? Math.round(analysed.reduce((sum, row) => sum + (row.overall_score ?? 0), 0) / analysed.length) : null };
   }, [data]);
   return <main className={compact ? "w-full min-w-0 max-w-full overflow-x-clip space-y-4" : "w-full min-w-0 max-w-full overflow-x-clip px-4 py-6 sm:px-10 sm:py-10"}>
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className={compact ? "font-display text-xl" : "font-display text-3xl"}>Leads</h2><p className="mt-1 text-sm text-muted-foreground">{stats.total} leads saved</p></div><Button asChild size={compact ? "sm" : "default"}><Link to="/"><Plus />New Lead</Link></Button></div>
     <div className={`${compact ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-4" : "mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"}`} aria-label="Lead summary">
       <div className="rounded-lg border bg-card p-4"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Leads</p><p className="mt-1 text-xl font-semibold">{stats.total}</p></div>
       <div className="rounded-lg border bg-card p-4"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI Pending</p><p className="mt-1 text-xl font-semibold">{stats.pending}</p></div>
-      <div className="rounded-lg border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm dark:border-amber-900 dark:from-amber-950/30 dark:to-card"><p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">தகவல் இல்லை</p><p className="mt-1 text-xl font-semibold text-amber-900 dark:text-amber-100">{stats.noInfo}</p><p className="mt-1 text-xs text-muted-foreground">Analysis completed · score unavailable</p></div>
+      <div className="rounded-lg border bg-card p-4"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">தகவல் இல்லை</p><p className="mt-1 text-xl font-semibold">{stats.noInfo}</p></div>
       <div className="rounded-lg border bg-card p-4"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Average Score</p><p className="mt-1 text-xl font-semibold">{stats.average === null ? "—" : `${stats.average}/100`}</p></div>
     </div>
     <div className={compact ? "my-2" : "my-7"}><WorkspaceRecordFilters rows={data} projects={projects} employeeNames={employees} getDate={createdDate} onChange={nextRows => { setFilteredRows(nextRows); setPage(1); }} /></div>
