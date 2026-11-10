@@ -8,6 +8,7 @@ Every file is idempotent (safe to run more than once).
 3. `workspace-access.sql` — profiles, user roles, Admin session/attempt-limit tables,
    owner/admin read policies, and the extra workspace columns
    (`owner_id`, `submission_key`, `processing_status`).
+4. `analysis-guards.sql` — shared per-lead Analysis locks and Gemini quota cooldown. Run before deploying the duplicate-analysis guard.
 
 After the SQL: create the private `call-audio` storage bucket through the
 Storage API (not SQL) — the app's audio upload needs it.

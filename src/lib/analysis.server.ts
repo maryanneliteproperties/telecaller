@@ -73,8 +73,26 @@ export async function analyseTranscript(request: Request, transcript: string, ap
       if (response.status === 429) {
         const dailyQuotaExceeded = /requests per day|per day.*free tier|daily quota|daily limit|retry in \d+h/i.test(lastErrorMessage);
         if (dailyQuotaExceeded) {
-          // Do not waste time on retries/fallback models for an exhausted daily quota.
-          return jsonError("Gemini API தினசரி quota முடிந்துவிட்டது. Quota reset ஆகும் வரை காத்திருக்கவும் அல்லது Google AI Studio-வில் Paid Tier enable செய்யவும்.", 429);
+          // Do not retry or fall back after a daily quota failure. Pass Google's
+          // retry window to the API route so it can persist a shared cooldown.
+          let retrySeconds = 3600;
+          try {
+            const parsedBody = JSON.parse(body) as {
+              error?: { details?: Array<{ ["@type"]?: string; retryDelay?: string }> };
+            };
+            const retryDelay = parsedBody.error?.details?.find(item => item["@type"]?.endsWith("/RetryInfo"))?.retryDelay ?? "";
+            const match = retryDelay.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?$/);
+            if (match && retryDelay) {
+              retrySeconds = Number(match[1] ?? 0) * 3600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0);
+            }
+          } catch {}
+          retrySeconds = Math.max(60, Math.min(86400, retrySeconds));
+          return new Response(JSON.stringify({
+            error: "Gemini API தினசரி quota முடிந்துவிட்டது. Quota reset ஆகும் வரை காத்திருக்கவும் அல்லது Google AI Studio-வில் Paid Tier enable செய்யவும்.",
+          }), {
+            status: 429,
+            headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "Retry-After": String(retrySeconds) },
+          });
         }
       }
       const retryable = [500, 502, 503, 504].includes(response.status)
@@ -120,7 +138,7 @@ export async function analyseTranscript(request: Request, transcript: string, ap
       repaired = repaired
         .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":')
         // Recover a quoted property name whose colon was omitted by Gemini.
-        .replace(/("(?:\\.|[^"\\])*")\s+(?=(?:"|\{|\[|-?\d|true\b|false\b|null\b))/g, "$1:")
+        .replace(/("(?:\.|[^"\\])*")\s+(?=(?:"|\{|\[|-?\d|true\b|false\b|null\b))/g, "$1:")
         .replace(/,\s*([}\]])/g, "$1");
       try {
         parsed = JSON.parse(repaired);
