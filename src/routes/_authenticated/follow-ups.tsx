@@ -56,6 +56,7 @@ function FollowUpsPage() {
   );
 
   const visibleRows = filteredRows ?? rows;
+  const handleFilterChange = useCallback((nextRows: typeof leads) => { setFilteredRows(nextRows); setPage(1); }, []);
   const pageRows = visibleRows.slice((page - 1) * pageSize, page * pageSize);
 
   async function save(id: string, date: string | null, status: string) {
@@ -104,7 +105,7 @@ function FollowUpsPage() {
 
         {kind === "conversion" && <p className="text-sm text-muted-foreground">Site Visit Completed ஆன customer-க்கு மட்டும் Booking Conversion follow-up செய்யுங்கள்.</p>}
 
-        <WorkspaceRecordFilters rows={rows} projects={projects} employeeNames={employees} getDate={getFilterDate} onChange={nextRows => { setFilteredRows(nextRows); setPage(1); }} />
+        <WorkspaceRecordFilters rows={rows} projects={projects} employeeNames={employees} getDate={getFilterDate} onChange={handleFilterChange} />
 
         <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border">
           <table className="w-full min-w-[1000px] text-sm">
