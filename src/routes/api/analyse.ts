@@ -23,7 +23,7 @@ export const Route = createFileRoute("/api/analyse")({
     const db = workspaceAdmin();
     if (lead.call_report_id) {
       const { data: existing } = await db.from("call_reports").select("report").eq("id", lead.call_report_id).maybeSingle();
-      if (existing) return new Response(`data: ${JSON.stringify({ type: "report", report: existing.report })}\\n\\n`, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store" } });
+      if (existing) return new Response(`data: ${JSON.stringify({ type: "report", report: existing.report })}\n\n`, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-store" } });
     }
 
     // Shared database-backed circuit breaker: stop repeated requests after a daily quota error.
