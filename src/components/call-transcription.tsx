@@ -7,6 +7,13 @@ import { startAudioProcessing, getAudioProcessingState, subscribeAudioProcessing
 import { getLeadReport } from "@/lib/workspace.functions";
 import { validateReport, type ConversationReport } from "@/lib/conversation-report";
 
+function isApiErrorTranscript(value: string) {
+  const text = value.trim();
+  return /^(Gemini தினசரி API quota முடிந்துவிட்டது|Gemini API request limit அடைந்துள்ளது)/i.test(text)
+    || /^<!doctype html>/i.test(text)
+    || /<html[\s>]/i.test(text) && /This page didn't load/i.test(text);
+}
+
 export function CallTranscription({ leadId, savedAudioName, autoStart = false }: { leadId: string; savedAudioName: string; autoStart?: boolean }) {
   const processing = useSyncExternalStore(
     subscribeAudioProcessing,
@@ -31,10 +38,16 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
     return () => { active = false; };
   }, [autoStart, leadId, savedAudioName]);
 
-  const transcript = processing?.transcript || savedTranscript;
+  const rawTranscript = processing?.transcript || savedTranscript;
+  const transcript = isApiErrorTranscript(rawTranscript) ? "" : rawTranscript;
   const report = processing?.report ?? savedReport;
   const loading = processing?.status === "transcribing" || processing?.status === "analysing";
-  const error = processing?.status === "error" ? processing.error : "";
+  const storedTranscriptError = !processing && isApiErrorTranscript(savedTranscript);
+  const error = processing?.status === "error"
+    ? processing.error
+    : storedTranscriptError
+      ? "முந்தைய முயற்சியில் API error transcript-ஆக சேமிக்கப்பட்டுள்ளது. Quota reset ஆன பிறகு Retry செய்யவும்."
+      : "";
 
   async function copy() {
     if (!transcript) return;
@@ -70,7 +83,8 @@ export function CallTranscription({ leadId, savedAudioName, autoStart = false }:
                 {processing?.status === "transcribing" ? "Audio transcription தானாக நடைபெறுகிறது…" :
                   processing?.status === "analysing" ? "Transcript முடிந்தது. AI analysis மற்றும் report தயாராகிறது…" :
                   processing?.status === "completed" || report ? "Transcription மற்றும் AI report முடிந்தது." :
-                  error || "Audio processing status ஏற்றப்படுகிறது…"}
+                  error ? "Transcription தோல்வியடைந்தது. கீழே உள்ள விவரத்தைப் பார்க்கவும்." :
+                  "Audio processing status ஏற்றப்படுகிறது…"}
               </p>
             </div>
             {error && <Button size="sm" variant="outline" onClick={() => startAudioProcessing(leadId, savedAudioName)}><RotateCcw className="h-4 w-4" /> Retry</Button>}
