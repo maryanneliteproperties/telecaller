@@ -1,7 +1,7 @@
 import { CallAudioPlayer } from "@/components/call-audio-player";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { LeadSummary } from "@/components/lead-summary";
 import { deleteLead, getLeadReport, listLeads, listAvailableProjects, listWorkspaceFilterEmployees, updateLeadSiteVisit } from "@/lib/workspace.functions";
@@ -105,6 +105,7 @@ export function LeadsPage({ identity, compact = false }: { identity: { role: "ad
     finally { setDownloading(null); }
   }
   const rows = filteredRows ?? data;
+  const handleFilterChange = useCallback((nextRows: typeof data) => { setFilteredRows(nextRows); setPage(1); }, []);
   const paginatedRows = rows.slice((page - 1) * pageSize, page * pageSize);
   const stats = useMemo(() => {
     const analysed = data.filter(row => row.overall_score !== null);
@@ -119,7 +120,7 @@ export function LeadsPage({ identity, compact = false }: { identity: { role: "ad
       <div className="rounded-lg border bg-card p-4"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">தகவல் இல்லை</p><p className="mt-1 text-xl font-semibold">{stats.noInfo}</p></div>
       <div className="rounded-lg border bg-card p-4"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Average Score</p><p className="mt-1 text-xl font-semibold">{stats.average === null ? "—" : `${stats.average}/100`}</p></div>
     </div>
-    <div className={compact ? "my-2" : "my-7"}><WorkspaceRecordFilters rows={data} projects={projects} employeeNames={employees} getDate={createdDate} onChange={nextRows => { setFilteredRows(nextRows); setPage(1); }} /></div>
+    <div className={compact ? "my-2" : "my-7"}><WorkspaceRecordFilters rows={data} projects={projects} employeeNames={employees} getDate={createdDate} onChange={handleFilterChange} /></div>
     {downloadError && <p role="alert" className="mb-4 text-sm text-destructive">{downloadError}</p>}
     {visitError && <p role="alert" className="mb-4 text-sm text-destructive">{visitError}</p>}
     {actionError && <p role="alert" className="mb-4 text-sm text-destructive">{actionError}</p>}
