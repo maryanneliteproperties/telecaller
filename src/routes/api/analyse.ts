@@ -4,7 +4,11 @@ import { z } from "zod";
 export const Route = createFileRoute("/api/analyse")({
   server: { handlers: { POST: async ({ request }) => {
     const { workspaceIdentity, readLead, workspaceAdmin } = await import("@/lib/workspace.server");
-    const identity = await workspaceIdentity(request);
+    const workerSecret = process.env["CRON_SECRET"];
+    const isWorkerRequest = !!workerSecret && request.headers.get("authorization") === `Bearer ${workerSecret}`;
+    const identity = isWorkerRequest
+      ? { id: "admin", username: "Audio worker", role: "admin" as const }
+      : await workspaceIdentity(request);
     if (!identity) return Response.json({ error: "முதலில் login பண்ணுங்க." }, { status: 401 });
     const apiKey = process.env["GEMINI_API_KEY"];
     if (!apiKey) return Response.json({ error: "GEMINI_API_KEY is missing from the server environment." }, { status: 500 });
