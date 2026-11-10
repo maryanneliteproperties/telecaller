@@ -1,12 +1,50 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Loader2, AlertCircle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAudioProcessingSnapshot, startAudioProcessing, subscribeAudioProcessing } from "@/lib/audio-processing";
 
 export function BackgroundAudioStatus() {
   const jobs = useSyncExternalStore(subscribeAudioProcessing, getAudioProcessingSnapshot, getAudioProcessingSnapshot);
-  const visible = jobs.filter(job => job.status === "transcribing" || job.status === "analysing" || job.status === "error");
+  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(() => new Set());
+  const errorTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  useEffect(() => {
+    for (const job of jobs) {
+      if (job.status === "error") {
+        if (!errorTimers.current.has(job.leadId) && !dismissedErrors.has(job.leadId)) {
+          const timer = setTimeout(() => {
+            setDismissedErrors(current => new Set(current).add(job.leadId));
+            errorTimers.current.delete(job.leadId);
+          }, 10_000);
+          errorTimers.current.set(job.leadId, timer);
+        }
+      } else {
+        const timer = errorTimers.current.get(job.leadId);
+        if (timer) clearTimeout(timer);
+        errorTimers.current.delete(job.leadId);
+        if (dismissedErrors.has(job.leadId)) {
+          setDismissedErrors(current => {
+            const next = new Set(current);
+            next.delete(job.leadId);
+            return next;
+          });
+        }
+      }
+    }
+  }, [jobs, dismissedErrors]);
+
+  useEffect(() => () => {
+    errorTimers.current.forEach(timer => clearTimeout(timer));
+    errorTimers.current.clear();
+  }, []);
+
+  const visible = jobs.filter(job =>
+    job.status === "transcribing" ||
+    job.status === "analysing" ||
+    (job.status === "error" && !dismissedErrors.has(job.leadId))
+  );
   if (!visible.length) return null;
+
   return (
     <aside aria-live="polite" className="fixed bottom-4 right-4 z-[100] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2">
       {visible.map(job => (
