@@ -81,7 +81,7 @@ export async function analyseTranscript(request: Request, transcript: string, ap
               error?: { details?: Array<{ ["@type"]?: string; retryDelay?: string }> };
             };
             const retryDelay = parsedBody.error?.details?.find(item => item["@type"]?.endsWith("/RetryInfo"))?.retryDelay ?? "";
-            const match = retryDelay.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\\.\d+)?)s)?$/);
+            const match = retryDelay.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?$/);
             if (match && retryDelay) {
               retrySeconds = Number(match[1] ?? 0) * 3600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0);
             }
@@ -138,7 +138,7 @@ export async function analyseTranscript(request: Request, transcript: string, ap
       repaired = repaired
         .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":')
         // Recover a quoted property name whose colon was omitted by Gemini.
-        .replace(/("(?:\\.|[^"\\])*")\s+(?=(?:"|\{|\[|-?\d|true\b|false\b|null\b))/g, "$1:")
+        .replace(/("(?:\.|[^"\\])*")\s+(?=(?:"|\{|\[|-?\d|true\b|false\b|null\b))/g, "$1:")
         .replace(/,\s*([}\]])/g, "$1");
       try {
         parsed = JSON.parse(repaired);
