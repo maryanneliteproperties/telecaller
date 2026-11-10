@@ -202,9 +202,9 @@ export const Route = createFileRoute("/api/transcribe")({
           if (res.status === 429) {
             const dailyQuotaExceeded = /requests per day|per day.*free tier|daily quota|daily limit|retry in \d+h/i.test(lastErrorMessage);
             if (dailyQuotaExceeded) {
-              return jsonError("Gemini தினசரி API quota முடிந்துவிட்டது. Quota reset ஆகும் வரை காத்திருக்கவும் அல்லது Google AI Studio-வில் Paid Tier enable செய்யவும். மீண்டும் மீண்டும் retry செய்தாலும் quota அதிகரிக்காது.", 429);
+              return jsonError(429, "Gemini தினசரி API quota முடிந்துவிட்டது. Quota reset ஆகும் வரை காத்திருக்கவும் அல்லது Google AI Studio-வில் Paid Tier enable செய்யவும். மீண்டும் மீண்டும் retry செய்தாலும் quota அதிகரிக்காது.");
             }
-            return jsonError("Gemini API request limit அடைந்துள்ளது. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.", 429);
+            return jsonError(429, "Gemini API request limit அடைந்துள்ளது. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.");
           }
           return jsonError(res.status >= 500 ? 503 : res.status, "Gemini transcription error: " + lastErrorMessage);
         }
