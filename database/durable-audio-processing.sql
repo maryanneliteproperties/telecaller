@@ -27,7 +27,22 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  WITH candidate AS (
+  WITH stale AS (
+    UPDATE public.audio_processing_jobs
+    SET status = 'failed', last_error = COALESCE(last_error, 'Worker lease expired too many times.'),
+        locked_at = NULL, updated_at = now()
+    WHERE status = 'processing' AND attempts >= 10
+      AND locked_at < now() - interval '10 minutes'
+    RETURNING lead_id
+  ),
+  mark_stale_leads AS (
+    UPDATE public.telecaller_data AS lead
+    SET processing_status = 'failed'
+    FROM stale
+    WHERE lead.id = stale.lead_id
+    RETURNING lead.id
+  ),
+  candidate AS (
     SELECT id
     FROM public.audio_processing_jobs
     WHERE attempts < 10
@@ -77,7 +92,7 @@ END;
 $$;
 DROP TRIGGER IF EXISTS telecaller_data_enqueue_audio ON public.telecaller_data;
 CREATE TRIGGER telecaller_data_enqueue_audio
-AFTER INSERT OR UPDATE OF audio_path, processing_status
+AFTER INSERT OR UPDATE OF audio_path
 ON public.telecaller_data
 FOR EACH ROW EXECUTE FUNCTION public.enqueue_audio_processing_job();
 
