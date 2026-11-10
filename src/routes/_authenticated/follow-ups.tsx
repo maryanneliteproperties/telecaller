@@ -7,6 +7,7 @@ import { listLeads, listAvailableProjects, listWorkspaceFilterEmployees, updateL
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WorkspaceRecordFilters } from "@/components/workspace-record-filters";
+import { WorkspacePagination } from "@/components/workspace-pagination";
 
 const leadsOptions = queryOptions({ queryKey: ["workspace", "leads"], queryFn: () => listLeads() });
 const projectsOptions = queryOptions({ queryKey: ["workspace", "projects"], queryFn: () => listAvailableProjects() });
@@ -33,6 +34,8 @@ function FollowUpsPage() {
 
   const [kind, setKind] = useState<"site_visit" | "conversion">("site_visit");
   const [filteredRows, setFilteredRows] = useState<typeof leads | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [dates, setDates] = useState<Record<string, string>>({});
   const [statuses, setStatuses] = useState<Record<string, string>>({});
   const [activeInputStatus, setActiveInputStatus] = useState<Record<string, string>>({});
@@ -53,6 +56,8 @@ function FollowUpsPage() {
   );
 
   const visibleRows = filteredRows ?? rows;
+  const handleFilterChange = useCallback((nextRows: typeof leads) => { setFilteredRows(nextRows); setPage(1); }, []);
+  const pageRows = visibleRows.slice((page - 1) * pageSize, page * pageSize);
 
   async function save(id: string, date: string | null, status: string) {
     setSaving(id);
@@ -94,13 +99,13 @@ function FollowUpsPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant={kind === "site_visit" ? "default" : "outline"} onClick={() => setKind("site_visit")}>1st Follow-up · Site Visit Schedule</Button>
-          <Button variant={kind === "conversion" ? "default" : "outline"} onClick={() => setKind("conversion")}>2nd Follow-up · Booking Conversion</Button>
+          <Button variant={kind === "site_visit" ? "default" : "outline"} onClick={() => { setKind("site_visit"); setPage(1); }}>1st Follow-up · Site Visit Schedule</Button>
+          <Button variant={kind === "conversion" ? "default" : "outline"} onClick={() => { setKind("conversion"); setPage(1); }}>2nd Follow-up · Booking Conversion</Button>
         </div>
 
         {kind === "conversion" && <p className="text-sm text-muted-foreground">Site Visit Completed ஆன customer-க்கு மட்டும் Booking Conversion follow-up செய்யுங்கள்.</p>}
 
-        <WorkspaceRecordFilters rows={rows} projects={projects} employeeNames={employees} getDate={getFilterDate} onChange={setFilteredRows} />
+        <WorkspaceRecordFilters rows={rows} projects={projects} employeeNames={employees} getDate={getFilterDate} onChange={handleFilterChange} />
 
         <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border">
           <table className="w-full min-w-[1000px] text-sm">
@@ -108,7 +113,7 @@ function FollowUpsPage() {
               <tr>{["Next Follow-up Date", "Customer", "Phone", "Project", "Follow-up Type", "Status", "Action"].map(label => <th key={label} className="whitespace-nowrap px-4 py-3">{label}</th>)}</tr>
             </thead>
             <tbody className="divide-y">
-              {visibleRows.map(row => {
+              {pageRows.map(row => {
                 const originalDate = kind === "site_visit" ? row.follow_up_date : row.conversion_follow_up_date;
                 const status = kind === "site_visit" ? row.follow_up_status : row.conversion_follow_up_status;
                 const rescheduledDate = kind === "site_visit" ? row.follow_up_rescheduled_date : row.conversion_follow_up_rescheduled_date;
@@ -194,6 +199,7 @@ function FollowUpsPage() {
           </table>
           {visibleRows.length === 0 && <p className="px-4 py-12 text-center text-sm text-muted-foreground">இந்த வகையில் follow-up செய்ய வேண்டிய leads இல்லை.</p>}
         </div>
+        <WorkspacePagination totalItems={visibleRows.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={size => { setPageSize(size); setPage(1); }} />
       </div>
     </main>
   );
