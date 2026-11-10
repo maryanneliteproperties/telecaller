@@ -50,6 +50,11 @@ AS $$
         (status = 'queued' AND next_attempt_at <= now())
         OR (status = 'processing' AND locked_at < now() - interval '10 minutes')
       )
+      AND NOT EXISTS (
+        SELECT 1 FROM public.audio_processing_jobs AS active
+        WHERE active.status = 'processing'
+          AND active.locked_at >= now() - interval '10 minutes'
+      )
     ORDER BY next_attempt_at, created_at
     FOR UPDATE SKIP LOCKED
     LIMIT 1
