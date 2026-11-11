@@ -341,3 +341,42 @@ export const listWorkspaceActivity = createServerFn({ method: "GET" }).inputVali
   if (error) throw new Error("History ஏற்ற முடியல. Activity History SQL run செய்துள்ளீர்களா சரிபார்க்கவும்.");
   return rows ?? [];
 });
+
+
+export const getEmployeeDashboardStats = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
+  await requireAdmin();
+  const db = workspaceAdmin();
+  const [employeeRolesResult, leadsResult, scoresResult] = await Promise.all([
+    db.from("user_roles").select("user_id").eq("role", "employee"),
+    db.from("telecaller_data").select("id", { count: "exact", head: true }),
+    db.from("telecaller_data").select("call_report_id,telecaller_name,overall_score,created_at").not("overall_score", "is", null).limit(10000),
+  ]);
+  if (employeeRolesResult.error) throw new Error("Employee count-ஐ ஏற்ற முடியல.");
+  if (leadsResult.error) throw new Error("Lead count-ஐ ஏற்ற முடியல.");
+  if (scoresResult.error) throw new Error("Employee score-ஐ கணக்கிட முடியல.");
+  const employeeIds = [...new Set((employeeRolesResult.data ?? []).map(row => row.user_id))];
+  const { data: profiles, error: profilesError } = employeeIds.length
+    ? await db.from("profiles").select("id,username").in("id", employeeIds).order("username", { ascending: true })
+    : { data: [], error: null };
+  if (profilesError) throw new Error("Employee விவரங்களை ஏற்ற முடியல.");
+  const reportIds = [...new Set((scoresResult.data ?? []).map(row => row.call_report_id).filter((id): id is string => !!id))];
+  const { data: reports, error: reportsError } = reportIds.length
+    ? await db.from("call_reports").select("id,created_at").in("id", reportIds)
+    : { data: [], error: null };
+  if (reportsError) throw new Error("Call report date-ஐ ஏற்ற முடியல.");
+  const reportDates = new Map((reports ?? []).map(row => [row.id, row.created_at]));
+  const scoreRows = (scoresResult.data ?? [])
+    .map(row => ({ telecallerName: row.telecaller_name ?? "", score: Number(row.overall_score), createdAt: (row.call_report_id ? reportDates.get(row.call_report_id) : null) ?? row.created_at }))
+    .filter(row => Number.isFinite(row.score) && !!row.createdAt);
+  const overallScore = scoreRows.length
+    ? Math.round((scoreRows.reduce((total, row) => total + row.score, 0) / scoreRows.length) * 10) / 10
+    : null;
+  return {
+    totalEmployees: profiles?.length ?? 0,
+    totalLeads: leadsResult.count ?? 0,
+    overallScore,
+    employees: (profiles ?? []).map(row => ({ id: row.id, username: row.username })),
+    scoreRows,
+  };
+});
