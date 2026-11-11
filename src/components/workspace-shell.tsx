@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { Home, Users, FileText, PanelLeft, LogOut, Menu, Building2, ShieldCheck, X, FolderKanban, CalendarDays, MapPin, LayoutDashboard, History, ChevronDown } from "lucide-react";
+import { Home, Users, PanelLeft, LogOut, Menu, Building2, ShieldCheck, X, FolderKanban, CalendarDays, MapPin, LayoutDashboard, History, ChevronDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { logoutWorkspace } from "@/lib/workspace.functions";
