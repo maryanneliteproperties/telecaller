@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { Home, Users, PanelLeft, LogOut, Menu, Building2, ShieldCheck, X, FolderKanban, CalendarDays, MapPin, LayoutDashboard, History, ChevronDown } from "lucide-react";
+import { Home, Users, PanelLeft, LogOut, Menu, Building2, ShieldCheck, X, FolderKanban, CalendarDays, MapPin, LayoutDashboard, History, ChevronDown, PhoneCall } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { logoutWorkspace } from "@/lib/workspace.functions";
@@ -21,13 +21,14 @@ const PAGE_TITLES: Array<[prefix: string, title: string]> = [
   ["/leads", "Leads"],
   ["/reports", "Reports"],
   ["/new_leads", "New Lead"],
+  ["/cloud-calling", "Cloud Calling"],
 ];
 
 export function WorkspaceShell({ identity, children }: { identity: WorkspaceIdentity; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false), [mobileOpen, setMobileOpen] = useState(false);
   const path = useRouterState({ select: r => r.location.pathname });
   const navigate = useNavigate(), queryClient = useQueryClient(), logout = useServerFn(logoutWorkspace);
-  const items = [{ title: "New Lead", to: "/new_leads" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Follow Ups", to: "/follow-ups" as const, icon: CalendarDays }, { title: "Site Visit", to: "/site-visits" as const, icon: MapPin }];
+  const items = [{ title: "New Lead", to: "/new_leads" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Follow Ups", to: "/follow-ups" as const, icon: CalendarDays }, { title: "Site Visit", to: "/site-visits" as const, icon: MapPin }, { title: "Cloud Calling", to: "/cloud-calling" as const, icon: PhoneCall }];
   const pageTitle = PAGE_TITLES.find(([prefix]) => path === prefix || (prefix !== "/" && path.startsWith(prefix)))?.[1] ?? "Home";
   async function signOut() {
     await queryClient.cancelQueries(); queryClient.clear();
