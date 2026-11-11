@@ -73,19 +73,19 @@ const startCloudCall = createServerFn({ method: "POST" })
           ?? parsed.error
           ?? "";
       } catch {
-        providerMessage = raw.match(/<(?:Message|message)>([\\s\\S]*?)<\\/(?:Message|message)>/i)?.[1] ?? raw;
+        providerMessage = raw.match(/<(?:Message|message)>([\s\S]*?)<\/(?:Message|message)>/i)?.[1] ?? raw;
       }
       const sensitiveValues = [apiKey, apiToken, accountSid, callerId, from, to]
         .filter((value): value is string => Boolean(value));
       let safeMessage = providerMessage
         .replace(/<[^>]*>/g, " ")
-        .replace(/[\\r\\n\\t]+/g, " ")
-        .replace(/\\s{2,}/g, " ")
+        .replace(/[\r\n\t]+/g, " ")
+        .replace(/\s{2,}/g, " ")
         .trim();
       for (const value of sensitiveValues) {
         safeMessage = safeMessage.split(value).join("[REDACTED]");
       }
-      safeMessage = safeMessage.replace(/\\+?\\d[\\d .()\\-]{7,}\\d/g, "[REDACTED NUMBER]").slice(0, 240);
+      safeMessage = safeMessage.replace(/\+?\d[\d .()\-]{7,}\d/g, "[REDACTED NUMBER]").slice(0, 240);
       if (!safeMessage) safeMessage = "Exotel response-ல் விவரமான error message கிடைக்கவில்லை.";
       console.error("[Exotel call] request failed", {
         status: response.status,
