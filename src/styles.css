@@ -218,3 +218,18 @@
 .mobile-table-scroll.dashboard-table-vertical::-webkit-scrollbar-corner {
   background: oklch(0.95 0.015 275);
 }
+
+
+/* Sidebar remains vertically scrollable while its scrollbar stays hidden. */
+.sidebar-scrollbar-hidden {
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sidebar-scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
