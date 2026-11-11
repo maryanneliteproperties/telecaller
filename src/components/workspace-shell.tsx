@@ -50,7 +50,7 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
         </summary>
         <div className="ml-4 mt-1 space-y-1 border-l border-sidebar-border pl-3">
           <Button asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === "/dashboard/organization" ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title="Organization">
-            <Link to="/dashboard/organization" onClick={() => setMobileOpen(false)}><Building2 className="h-4 w-4" />{!compact && <span>Organization Dashboard</span>}</Link>
+            <Link to="/dashboard/organization" onClick={() => setMobileOpen(false)}><Building2 className="h-4 w-4" />{!compact && <span>Organization</span>}</Link>
           </Button>
           {identity.role === "admin" && <Button asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === "/dashboard/employees" ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title="Employees">
             <Link to="/dashboard/employees" onClick={() => setMobileOpen(false)}><Users className="h-4 w-4" />{!compact && <span>Employees</span>}</Link>
