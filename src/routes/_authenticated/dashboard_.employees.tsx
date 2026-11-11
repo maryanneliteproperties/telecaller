@@ -8,7 +8,7 @@ const statsOptions = queryOptions({
   queryFn: () => getEmployeeDashboardStats(),
 });
 
-export const Route = createFileRoute("/_authenticated/dashboard/employees")({
+export const Route = createFileRoute("/_authenticated/dashboard_/employees")({
   beforeLoad: async () => {
     const identity = await getWorkspaceIdentity();
     if (identity?.role !== "admin") throw redirect({ to: "/dashboard/organization" });
