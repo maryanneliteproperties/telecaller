@@ -111,7 +111,7 @@ function DashboardPage() {
           })}
         </section>
 
-        <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(340px,0.8fr)]">
           <div className="min-w-0 space-y-5">
             <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_35px_-20px_rgba(30,41,59,0.35)] sm:p-6">
               <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-slate-900">Site Visit Schedule Follow-ups</h2><p className="mt-1 text-xs text-slate-500">Showing {Math.min(5, metrics.siteSchedule.length)} of {metrics.siteSchedule.length} · {metrics.siteSchedule.length > 5 ? "Scroll inside to view more" : "All pending follow-ups"}</p></div><MapPin className="h-5 w-5 text-rose-500" /></div>
