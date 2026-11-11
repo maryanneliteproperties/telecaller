@@ -44,27 +44,19 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
     </div>
     <nav className="flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-3 pb-8 pt-8" aria-label="Main menu">
       <details open className="group rounded-xl">
-        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2 text-[15px] font-medium text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" title="Organization">
-          <span className="flex min-w-0 items-center gap-3"><Building2 className="h-4 w-4 shrink-0" />{!compact && <span>Organization</span>}</span>
+        <summary className={`flex min-h-10 cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2 text-[15px] font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path.startsWith("/dashboard") ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/90"}`} title="Dashboard">
+          <span className="flex min-w-0 items-center gap-3"><LayoutDashboard className="h-4 w-4 shrink-0" />{!compact && <span>Dashboard</span>}</span>
           {!compact && <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />}
         </summary>
         <div className="ml-4 mt-1 space-y-1 border-l border-sidebar-border pl-3">
-          <Button asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === "/dashboard/organization" ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title="Organization Dashboard">
-            <Link to="/dashboard/organization" onClick={() => setMobileOpen(false)}><LayoutDashboard className="h-4 w-4" />{!compact && <span>Dashboard</span>}</Link>
+          <Button asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === "/dashboard/organization" ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title="Organization">
+            <Link to="/dashboard/organization" onClick={() => setMobileOpen(false)}><Building2 className="h-4 w-4" />{!compact && <span>Organization</span>}</Link>
           </Button>
+          {identity.role === "admin" && <Button asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === "/dashboard/employees" ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title="Employees">
+            <Link to="/dashboard/employees" onClick={() => setMobileOpen(false)}><Users className="h-4 w-4" />{!compact && <span>Employees</span>}</Link>
+          </Button>}
         </div>
       </details>
-      {identity.role === "admin" && <details open className="group rounded-xl">
-        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2 text-[15px] font-medium text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" title="Employees">
-          <span className="flex min-w-0 items-center gap-3"><Users className="h-4 w-4 shrink-0" />{!compact && <span>Employees</span>}</span>
-          {!compact && <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />}
-        </summary>
-        <div className="ml-4 mt-1 space-y-1 border-l border-sidebar-border pl-3">
-          <Button asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === "/dashboard/employees" ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title="Employees Dashboard">
-            <Link to="/dashboard/employees" onClick={() => setMobileOpen(false)}><LayoutDashboard className="h-4 w-4" />{!compact && <span>Dashboard</span>}</Link>
-          </Button>
-        </div>
-      </details>}
       {[...items, ...(identity.role === "admin" ? [{ title: "Projects", to: "/projects" as const, icon: FolderKanban }, { title: "Employee Accounts", to: "/employees" as const, icon: ShieldCheck }, { title: "History", to: "/history" as const, icon: History }] : [])].map(item => <Button key={item.title} asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-xl px-3 py-2 text-[15px] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === item.to || (item.to !== "/" && path.startsWith(item.to)) ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title={item.title}><Link to={item.to} onClick={() => setMobileOpen(false)}><item.icon />{!compact && <span>{item.title}</span>}</Link></Button>)}
     </nav>
   </>;
