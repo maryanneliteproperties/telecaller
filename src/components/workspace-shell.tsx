@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type ReactNode } from "react";
-import { Home, Users, FileText, PanelLeft, LogOut, Menu, Building2, ShieldCheck, X, FolderKanban, CalendarDays, MapPin, LayoutDashboard, History } from "lucide-react";
+import { Home, Users, FileText, PanelLeft, LogOut, Menu, Building2, ShieldCheck, X, FolderKanban, CalendarDays, MapPin, LayoutDashboard, History, ChevronDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { logoutWorkspace } from "@/lib/workspace.functions";
@@ -10,11 +10,13 @@ import { getDestinationClient } from "@/lib/destination-client";
 import type { WorkspaceIdentity } from "@/lib/workspace-schema";
 
 const PAGE_TITLES: Array<[prefix: string, title: string]> = [
+  ["/dashboard/organization", "Organization Dashboard"],
+  ["/dashboard/employees", "Employees Dashboard"],
   ["/dashboard", "Dashboard"],
   ["/projects", "Projects"],
   ["/follow-ups", "Follow Ups"],
   ["/site-visits", "Site Visit"],
-  ["/employees", "Employees"],
+  ["/employees", "Employee Accounts"],
   ["/history", "History"],
   ["/leads", "Leads"],
   ["/reports", "Reports"],
@@ -25,7 +27,7 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
   const [collapsed, setCollapsed] = useState(false), [mobileOpen, setMobileOpen] = useState(false);
   const path = useRouterState({ select: r => r.location.pathname });
   const navigate = useNavigate(), queryClient = useQueryClient(), logout = useServerFn(logoutWorkspace);
-  const items = [{ title: "New Lead", to: "/new_leads" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Follow Ups", to: "/follow-ups" as const, icon: CalendarDays }, { title: "Site Visit", to: "/site-visits" as const, icon: MapPin }, { title: "Call Reports", to: "/reports" as const, icon: FileText }];
+  const items = [{ title: "New Lead", to: "/new_leads" as const, icon: Home }, { title: "Leads", to: "/leads" as const, icon: Users }, { title: "Follow Ups", to: "/follow-ups" as const, icon: CalendarDays }, { title: "Site Visit", to: "/site-visits" as const, icon: MapPin }];
   const pageTitle = PAGE_TITLES.find(([prefix]) => path === prefix || (prefix !== "/" && path.startsWith(prefix)))?.[1] ?? "Home";
   async function signOut() {
     await queryClient.cancelQueries(); queryClient.clear();
@@ -40,7 +42,31 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
       </Link>
       <Button type="button" variant="ghost" size="icon" aria-label="Close sidebar" title="Close sidebar" className="shrink-0 text-sidebar-foreground hover:bg-sidebar-accent min-[1200px]:hidden" onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></Button>
     </div>
-    <nav className="flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-3 pb-8 pt-8" aria-label="Main menu">{[{ title: "Dashboard", to: "/dashboard" as const, icon: LayoutDashboard }, ...items, ...(identity.role === "admin" ? [{ title: "Projects", to: "/projects" as const, icon: FolderKanban }, { title: "Employees", to: "/employees" as const, icon: ShieldCheck }, { title: "History", to: "/history" as const, icon: History }] : [])].map(item => <Button key={item.title} asChild variant="ghost" className={`min-h-12 w-full justify-start rounded-xl px-3 py-3 text-[15px] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === item.to || (item.to !== "/" && path.startsWith(item.to)) ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title={item.title}><Link to={item.to} onClick={() => setMobileOpen(false)}><item.icon />{!compact && <span>{item.title}</span>}</Link></Button>)}</nav>
+    <nav className="flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-3 pb-8 pt-8" aria-label="Main menu">
+      <details open className="group rounded-xl">
+        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2 text-[15px] font-medium text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" title="Organization">
+          <span className="flex min-w-0 items-center gap-3"><Building2 className="h-4 w-4 shrink-0" />{!compact && <span>Organization</span>}</span>
+          {!compact && <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />}
+        </summary>
+        <div className="ml-4 mt-1 space-y-1 border-l border-sidebar-border pl-3">
+          <Button asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === "/dashboard/organization" ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title="Organization Dashboard">
+            <Link to="/dashboard/organization" onClick={() => setMobileOpen(false)}><LayoutDashboard className="h-4 w-4" />{!compact && <span>Dashboard</span>}</Link>
+          </Button>
+        </div>
+      </details>
+      {identity.role === "admin" && <details open className="group rounded-xl">
+        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2 text-[15px] font-medium text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" title="Employees">
+          <span className="flex min-w-0 items-center gap-3"><Users className="h-4 w-4 shrink-0" />{!compact && <span>Employees</span>}</span>
+          {!compact && <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />}
+        </summary>
+        <div className="ml-4 mt-1 space-y-1 border-l border-sidebar-border pl-3">
+          <Button asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-lg px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === "/dashboard/employees" ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title="Employees Dashboard">
+            <Link to="/dashboard/employees" onClick={() => setMobileOpen(false)}><LayoutDashboard className="h-4 w-4" />{!compact && <span>Dashboard</span>}</Link>
+          </Button>
+        </div>
+      </details>}
+      {[...items, ...(identity.role === "admin" ? [{ title: "Projects", to: "/projects" as const, icon: FolderKanban }, { title: "Employee Accounts", to: "/employees" as const, icon: ShieldCheck }, { title: "History", to: "/history" as const, icon: History }] : [])].map(item => <Button key={item.title} asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-xl px-3 py-2 text-[15px] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === item.to || (item.to !== "/" && path.startsWith(item.to)) ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title={item.title}><Link to={item.to} onClick={() => setMobileOpen(false)}><item.icon />{!compact && <span>{item.title}</span>}</Link></Button>)}
+    </nav>
   </>;
   return <div className="flex min-h-screen w-full min-w-0 overflow-x-clip">
     <aside className={`${collapsed ? "w-16" : "w-60"} sticky top-0 hidden h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground min-[1200px]:flex`}>{nav(collapsed)}</aside>
