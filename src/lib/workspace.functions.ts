@@ -341,3 +341,23 @@ export const listWorkspaceActivity = createServerFn({ method: "GET" }).inputVali
   if (error) throw new Error("History ஏற்ற முடியல. Activity History SQL run செய்துள்ளீர்களா சரிபார்க்கவும்.");
   return rows ?? [];
 });
+
+
+export const getEmployeeDashboardStats = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
+  await requireAdmin();
+  const db = workspaceAdmin();
+  const [employeesResult, leadsResult, scoresResult] = await Promise.all([
+    db.from("profiles").select("id", { count: "exact", head: true }),
+    db.from("telecaller_data").select("id", { count: "exact", head: true }),
+    db.from("telecaller_data").select("overall_score").not("overall_score", "is", null).limit(10000),
+  ]);
+  if (employeesResult.error) throw new Error("Employee count-ஐ ஏற்ற முடியல.");
+  if (leadsResult.error) throw new Error("Lead count-ஐ ஏற்ற முடியல.");
+  if (scoresResult.error) throw new Error("Overall score-ஐ கணக்கிட முடியல.");
+  const scores = (scoresResult.data ?? []).map(row => Number(row.overall_score)).filter(score => Number.isFinite(score));
+  const overallScore = scores.length
+    ? Math.round((scores.reduce((total, score) => total + score, 0) / scores.length) * 10) / 10
+    : null;
+  return { totalEmployees: employeesResult.count ?? 0, totalLeads: leadsResult.count ?? 0, overallScore };
+});
