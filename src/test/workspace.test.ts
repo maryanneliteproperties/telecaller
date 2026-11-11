@@ -16,7 +16,8 @@ describe("Workspace account and lead rules", () => {
     expect(adminLoginSchema.safeParse({ pin: "Abcd@1234" }).success).toBe(false);
   });
   it("requires username, real email and password for employee creation", () => {
-    expect(employeeSchema.safeParse({ username: "employee1", email: "employee@example.com", password: "Example-pass1" }).success).toBe(true);
+    expect(employeeSchema.safeParse({ username: "employee1", email: "employee@example.com", password: "Example-pass1", agentPhone: "9876543210" }).success).toBe(true);
+    expect(employeeSchema.safeParse({ username: "employee1", email: "employee@example.com", password: "Example-pass1", agentPhone: "12345" }).success).toBe(false);
     expect(employeeSchema.safeParse({ username: "employee1", password: "Example-pass1" }).success).toBe(false);
   });
   it("employee login accepts username and password without requiring email", () => {
