@@ -43,7 +43,7 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
       </Link>
       <Button type="button" variant="ghost" size="icon" aria-label="Close sidebar" title="Close sidebar" className="shrink-0 text-sidebar-foreground hover:bg-sidebar-accent min-[1200px]:hidden" onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></Button>
     </div>
-    <nav className="flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-3 pb-8 pt-8" aria-label="Main menu">
+    <nav className="sidebar-scrollbar-hidden flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-3 pb-8 pt-8" aria-label="Main menu">
       <details open className="group rounded-xl">
         <summary className={`flex min-h-10 cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2 text-[15px] font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path.startsWith("/dashboard") ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/90"}`} title="Dashboard">
           <span className="flex min-w-0 items-center gap-3"><LayoutDashboard className="h-4 w-4 shrink-0" />{!compact && <span>Dashboard</span>}</span>
