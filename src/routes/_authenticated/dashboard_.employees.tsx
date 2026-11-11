@@ -54,7 +54,7 @@ function EmployeesDashboardPage() {
   const cards = [
     { label: "Total Employees", value: data.totalEmployees.toLocaleString("en-IN"), note: "Registered employee accounts", icon: Users, gradient: "from-violet-600 to-indigo-500", glow: "shadow-violet-500/20" },
     { label: "Total Leads", value: data.totalLeads.toLocaleString("en-IN"), note: "All leads across the organization", icon: UserRound, gradient: "from-blue-600 to-cyan-500", glow: "shadow-blue-500/20" },
-    { label: "Overall Score", value: overallScore === null ? "—" : overallScore.toLocaleString("en-IN", { maximumFractionDigits: 1 }), note: period === "today" ? "Today's average AI call score" : period === "tomorrow" ? "Tomorrow's average AI call score" : "This month's average AI call score", icon: Target, gradient: "from-emerald-600 to-teal-500", glow: "shadow-emerald-500/20" },
+    { label: "Overall Score", value: overallScore === null ? "—" : overallScore.toLocaleString("en-IN", { maximumFractionDigits: 1 }), note: period === "today" ? "Today average AI call score" : period === "tomorrow" ? "Tomorrow average AI call score" : period === "date" ? `Average AI call score · ${selectedDate}` : "This month average AI call score", icon: Target, gradient: "from-emerald-600 to-teal-500", glow: "shadow-emerald-500/20" },
   ];
 
   return (
