@@ -97,7 +97,7 @@ function EmployeesDashboardPage() {
                 return <button key={option.value} type="button" aria-pressed={period === option.value} onClick={() => setPeriod(option.value)} className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-semibold transition ${period === option.value ? "border-indigo-700 bg-indigo-700 text-white shadow-sm" : "border-slate-300 bg-white text-slate-700 hover:border-indigo-500 hover:bg-indigo-50"}`}><Icon className="h-4 w-4" />{option.label}</button>;
               })}
             </div>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-600">Select Date<input type="date" value={selectedDate} onChange={event => { setSelectedDate(event.target.value); setPeriod("date"); }} className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100" /></label>
+            <input aria-label="Filter employee scores by date" type="date" value={selectedDate} onChange={event => { setSelectedDate(event.target.value); setPeriod("date"); }} className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
           </div>
           <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[520px] text-left text-sm">
