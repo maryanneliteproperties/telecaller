@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const callInput = z.object({
-  agentPhone: z.string().trim().min(7).max(20),
+  agentPhone: z.string().trim().max(20),
   customerName: z.string().trim().min(1).max(100),
   customerPhone: z.string().trim().min(7).max(20),
 });
@@ -27,7 +27,7 @@ const startCloudCall = createServerFn({ method: "POST" })
   .inputValidator((value: unknown) => callInput.parse(value))
   .handler(async ({ data }) => {
     const { requireWorkspace } = await import("@/lib/workspace.server");
-    await requireWorkspace();
+    const identity = await requireWorkspace();
 
     const apiKey = process.env.EXOTEL_API_KEY;
     const apiToken = process.env.EXOTEL_API_TOKEN;
@@ -37,7 +37,9 @@ const startCloudCall = createServerFn({ method: "POST" })
       throw new Error("Exotel setup முழுமையில்லை. Vercel Environment Variables சரிபார்க்கவும்.");
     }
 
-    const from = normalizePhone(data.agentPhone, "Agent");
+    const assignedAgentPhone = identity.role === "employee" ? identity.agentPhone : data.agentPhone;
+    if (!assignedAgentPhone) throw new Error("உங்கள் mobile number Admin மூலம் Employees பகுதியில் பதிவு செய்யப்படவில்லை.");
+    const from = normalizePhone(assignedAgentPhone, "Agent");
     const to = normalizePhone(data.customerPhone, "Customer");
     const host = "api.exotel.com"; // my.exotel.com accounts use the Singapore API cluster.
     const endpoint = `https://${host}/v1/Accounts/${encodeURIComponent(accountSid)}/Calls/connect.json`;
@@ -107,6 +109,7 @@ export const Route = createFileRoute("/_authenticated/cloud-calling")({
 });
 
 function CloudCallingPage() {
+  const { identity } = Route.useRouteContext();
   const makeCall = useServerFn(startCloudCall);
   const [agentPhone, setAgentPhone] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -120,7 +123,7 @@ function CloudCallingPage() {
     if (busy) return;
     setBusy(true); setError(""); setSuccess(null);
     try {
-      const result = await makeCall({ data: { agentPhone, customerName, customerPhone } });
+      const result = await makeCall({ data: { agentPhone: identity.role === "employee" ? (identity.agentPhone ?? "") : agentPhone, customerName, customerPhone } });
       setSuccess({ name: result.customerName, sid: result.callSid });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Call தொடங்க முடியவில்லை.");
@@ -135,12 +138,12 @@ function CloudCallingPage() {
     <p className="mt-2 text-sm text-muted-foreground">Agent number-க்கு முதலில் call வரும். Agent எடுத்ததும் customer-க்கு call connect ஆகும்.</p>
     <section className="panel mt-8 p-5 sm:p-8">
       <form onSubmit={submit} className="space-y-5">
-        <div className="space-y-2"><Label htmlFor="agent-phone">Telecaller / Agent Phone</Label><Input id="agent-phone" type="tel" required maxLength={20} value={agentPhone} onChange={e => setAgentPhone(e.target.value)} placeholder="9876543210 அல்லது +919876543210" disabled={busy} /></div>
+        <div className="space-y-2"><Label htmlFor="agent-phone">Telecaller / Agent Phone</Label>{identity.role === "employee" ? <><Input id="agent-phone" type="tel" value={identity.agentPhone ?? ""} readOnly placeholder="Admin mobile number பதிவு செய்ய வேண்டும்" disabled /><p className="text-xs text-muted-foreground">உங்கள் login account-க்கு இணைக்கப்பட்ட mobile number தானாகப் பயன்படுத்தப்படும்.</p></> : <Input id="agent-phone" type="tel" required maxLength={20} value={agentPhone} onChange={e => setAgentPhone(e.target.value)} placeholder="9876543210 அல்லது +919876543210" disabled={busy} />}</div>
         <div className="space-y-2"><Label htmlFor="customer-name">Customer Name</Label><Input id="customer-name" required maxLength={100} value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Customer பெயர்" disabled={busy} /></div>
         <div className="space-y-2"><Label htmlFor="customer-phone">Customer Phone</Label><Input id="customer-phone" type="tel" required maxLength={20} value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="9876543210 அல்லது +919876543210" disabled={busy} /></div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         {success && <div role="status" className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm"><p className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-5 w-5 text-primary" />Call request Exotel-க்கு அனுப்பப்பட்டது.</p><p className="mt-1">{success.name} · Agent phone-க்கு முதலில் call வரும்.</p>{success.sid && <p className="mt-1 break-all text-xs text-muted-foreground">Call SID: {success.sid}</p>}</div>}
-        <Button type="submit" size="lg" disabled={busy} className="w-full sm:w-auto">{busy ? <Loader2 className="animate-spin" /> : <PhoneCall />}{busy ? "Connecting…" : "Start Call"}</Button>
+        <Button type="submit" size="lg" disabled={busy || (identity.role === "employee" && !identity.agentPhone)} className="w-full sm:w-auto">{busy ? <Loader2 className="animate-spin" /> : <PhoneCall />}{busy ? "Connecting…" : "Start Call"}</Button>
       </form>
     </section>
     <p className="mt-4 text-xs leading-5 text-muted-foreground">Call செய்யும்போது Exotel credit/plan charges பொருந்தலாம். Caller ID-க்கு Exotel வழங்கிய ExoPhone பயன்படுத்தப்படும். API credentials browser-ல் காட்டப்படாது.</p>
