@@ -53,12 +53,45 @@ const startCloudCall = createServerFn({ method: "POST" })
     });
     const raw = await response.text();
     if (!response.ok) {
-      console.error("[Exotel call] request failed", { status: response.status });
-      throw new Error(response.status === 401 || response.status === 403
-        ? "Exotel authentication/permission error. API Key, API Token, Account SID சரிபார்க்கவும்."
-        : response.status === 400
-          ? "Exotel call request ஏற்கப்படவில்லை. Agent number, customer number, Caller ID மற்றும் Exotel account settings சரிபார்க்கவும்."
-          : "Exotel-ல் call தொடங்க முடியவில்லை. சில நிமிடங்களில் மீண்டும் முயற்சி செய்யவும்.");
+      // Exotel error bodies can be JSON or XML. Extract only the provider's
+      // message, then redact credentials and phone/account identifiers before
+      // logging or returning it to the browser.
+      let providerMessage = "";
+      try {
+        const parsed = JSON.parse(raw) as {
+          RestException?: { Message?: string; message?: string };
+          Message?: string;
+          message?: string;
+          error_description?: string;
+          error?: string;
+        };
+        providerMessage = parsed.RestException?.Message
+          ?? parsed.RestException?.message
+          ?? parsed.Message
+          ?? parsed.message
+          ?? parsed.error_description
+          ?? parsed.error
+          ?? "";
+      } catch {
+        providerMessage = raw.match(/<(?:Message|message)>([\\s\\S]*?)<\\/(?:Message|message)>/i)?.[1] ?? raw;
+      }
+      const sensitiveValues = [apiKey, apiToken, accountSid, callerId, from, to]
+        .filter((value): value is string => Boolean(value));
+      let safeMessage = providerMessage
+        .replace(/<[^>]*>/g, " ")
+        .replace(/[\\r\\n\\t]+/g, " ")
+        .replace(/\\s{2,}/g, " ")
+        .trim();
+      for (const value of sensitiveValues) {
+        safeMessage = safeMessage.split(value).join("[REDACTED]");
+      }
+      safeMessage = safeMessage.replace(/\\+?\\d[\\d .()\\-]{7,}\\d/g, "[REDACTED NUMBER]").slice(0, 240);
+      if (!safeMessage) safeMessage = "Exotel response-ல் விவரமான error message கிடைக்கவில்லை.";
+      console.error("[Exotel call] request failed", {
+        status: response.status,
+        providerMessage: safeMessage,
+      });
+      throw new Error(`Exotel API error (HTTP ${response.status}): ${safeMessage}`);
     }
     let callSid: string | null = null;
     try {
