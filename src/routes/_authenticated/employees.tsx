@@ -18,29 +18,29 @@ export const Route = createFileRoute("/_authenticated/employees")({
 });
 function EmployeesPage() {
   const { data } = useSuspenseQuery(employeesOptions), create = useServerFn(createEmployee), update = useServerFn(updateEmployee), remove = useServerFn(deleteEmployee), queryClient = useQueryClient();
-  const [username, setUsername] = useState(""), [email, setEmail] = useState(""), [password, setPassword] = useState(""), [showCreatePassword, setShowCreatePassword] = useState(false), [busy, setBusy] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
-  const [editing, setEditing] = useState<{id:string;username:string;email:string}|null>(null);
-  const [editUsername, setEditUsername] = useState(""), [editEmail, setEditEmail] = useState(""), [editPassword, setEditPassword] = useState(""), [showEditPassword, setShowEditPassword] = useState(false);
+  const [username, setUsername] = useState(""), [email, setEmail] = useState(""), [password, setPassword] = useState(""), [agentPhone, setAgentPhone] = useState(""), [showCreatePassword, setShowCreatePassword] = useState(false), [busy, setBusy] = useState(false), [message, setMessage] = useState(""), [error, setError] = useState("");
+  const [editing, setEditing] = useState<{id:string;username:string;email:string;agentPhone:string}|null>(null);
+  const [editUsername, setEditUsername] = useState(""), [editEmail, setEditEmail] = useState(""), [editPassword, setEditPassword] = useState(""), [editAgentPhone, setEditAgentPhone] = useState(""), [showEditPassword, setShowEditPassword] = useState(false);
   async function submit(e: FormEvent) {
     e.preventDefault(); if (busy) return; setError(""); setMessage("");
-    const parsed = employeeSchema.safeParse({ username, email, password });
+    const parsed = employeeSchema.safeParse({ username, email, password, agentPhone });
     if (!parsed.success) { setError("சரியான username/email மற்றும் குறைந்தது 8 எழுத்துள்ள password கொடுங்க."); return; }
     setBusy(true);
-    try { const result = await create({ data: parsed.data }); setMessage(`${result.username} account உருவாக்கப்பட்டது.`); setPassword(""); setUsername(""); setEmail(""); await queryClient.invalidateQueries({ queryKey: ["workspace", "employees"] }); }
+    try { const result = await create({ data: parsed.data }); setMessage(`${result.username} account உருவாக்கப்பட்டது.`); setPassword(""); setUsername(""); setEmail(""); setAgentPhone(""); await queryClient.invalidateQueries({ queryKey: ["workspace", "employees"] }); }
     catch(e) { setError(e instanceof Error ? e.message : "Account உருவாக்க முடியல."); }
     finally { setBusy(false); }
   }
-  function openEdit(row: {id:string;username:string;email:string}) {
-    setEditing(row); setEditUsername(row.username); setEditEmail(row.email); setEditPassword(""); setShowEditPassword(false); setError(""); setMessage("");
+  function openEdit(row: {id:string;username:string;email:string;agentPhone:string}) {
+    setEditing(row); setEditUsername(row.username); setEditEmail(row.email); setEditAgentPhone(row.agentPhone ?? ""); setEditPassword(""); setShowEditPassword(false); setError(""); setMessage("");
   }
   async function saveEdit(e: FormEvent) {
     e.preventDefault(); if (!editing || busy) return;
-    if (editUsername.trim().length < 3 || !/^[a-zA-Z0-9._-]+$/.test(editUsername.trim()) || !/^\S+@\S+\.\S+$/.test(editEmail.trim()) || (editPassword && editPassword.length < 8)) {
-      setError("சரியான username/email கொடுங்க. Password மாற்றினால் குறைந்தது 8 எழுத்துகள் வேண்டும்."); return;
+    if (editUsername.trim().length < 3 || !/^[a-zA-Z0-9._-]+$/.test(editUsername.trim()) || !/^\S+@\S+\.\S+$/.test(editEmail.trim()) || !/^(?:\+91)?[6-9][0-9]{9}$/.test(editAgentPhone.trim()) || (editPassword && editPassword.length < 8)) {
+      setError("சரியான username/email/mobile number கொடுங்க. Password மாற்றினால் குறைந்தது 8 எழுத்துகள் வேண்டும்."); return;
     }
     setBusy(true); setError(""); setMessage("");
     try {
-      await update({ data: { id: editing.id, username: editUsername.trim(), email: editEmail.trim(), ...(editPassword ? { password: editPassword } : {}) } });
+      await update({ data: { id: editing.id, username: editUsername.trim(), email: editEmail.trim(), agentPhone: editAgentPhone.trim(), ...(editPassword ? { password: editPassword } : {}) } });
       setEditing(null); setMessage("Employee விவரங்கள் update செய்யப்பட்டன."); await queryClient.invalidateQueries({ queryKey: ["workspace", "employees"] });
     } catch(e) { setError(e instanceof Error ? e.message : "Employee விவரங்களை update செய்ய முடியல."); }
     finally { setBusy(false); }
@@ -59,6 +59,7 @@ function EmployeesPage() {
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2"><Label htmlFor="employee-username">Username</Label><Input id="employee-username" required maxLength={40} value={username} onChange={e => setUsername(e.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="employee-email">Email</Label><Input id="employee-email" type="email" required maxLength={255} value={email} onChange={e => setEmail(e.target.value)} /></div>
+        <div className="space-y-2"><Label htmlFor="employee-phone">Telecaller Mobile</Label><Input id="employee-phone" type="tel" required maxLength={13} value={agentPhone} onChange={e => setAgentPhone(e.target.value)} placeholder="9876543210 அல்லது +919876543210" /></div>
         <div className="space-y-2"><Label htmlFor="employee-password">Password</Label><div className="relative"><Input id="employee-password" type={showCreatePassword ? "text" : "password"} autoComplete="new-password" required minLength={8} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="pr-11" /><button type="button" onClick={() => setShowCreatePassword(value => !value)} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground" aria-label={showCreatePassword ? "Hide password" : "Show password"} aria-pressed={showCreatePassword}>{showCreatePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
       </div>
       {error && !editing && <p role="alert" className="text-sm text-destructive">{error}</p>}{message && <p role="status" className="text-sm text-primary">{message}</p>}
@@ -67,9 +68,9 @@ function EmployeesPage() {
     {error && editing && <p role="alert" className="mb-4 text-sm text-destructive">{error}</p>}
     <div className="panel overflow-x-auto p-3 sm:p-6">
       <table className="w-full min-w-[520px] border-collapse text-left text-sm">
-        <thead><tr className="border-b text-muted-foreground"><th scope="col" className="px-3 py-3 font-semibold">Username</th><th scope="col" className="px-3 py-3 font-semibold">Email</th><th scope="col" className="px-3 py-3 text-right font-semibold">Action</th></tr></thead>
+        <thead><tr className="border-b text-muted-foreground"><th scope="col" className="px-3 py-3 font-semibold">Username</th><th scope="col" className="px-3 py-3 font-semibold">Email</th><th scope="col" className="px-3 py-3 font-semibold">Mobile</th><th scope="col" className="px-3 py-3 text-right font-semibold">Action</th></tr></thead>
         <tbody className="divide-y">{data.map(row => <tr key={row.id}>
-          <td className="px-3 py-4 font-medium">{row.username}</td><td className="px-3 py-4 text-muted-foreground">{row.email}</td>
+          <td className="px-3 py-4 font-medium">{row.username}</td><td className="px-3 py-4 text-muted-foreground">{row.email}</td><td className="px-3 py-4 text-muted-foreground">{row.agentPhone || "Mobile not added"}</td>
           <td className="px-3 py-4"><div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => openEdit(row)}><Pencil className="mr-1 h-4 w-4" />Edit</Button><Button type="button" variant="destructive" size="sm" disabled={busy} onClick={() => deleteRow(row)}><Trash2 className="mr-1 h-4 w-4" />Delete</Button></div></td>
         </tr>)}</tbody>
       </table>
@@ -81,6 +82,7 @@ function EmployeesPage() {
         <form onSubmit={saveEdit} className="space-y-4">
           <div className="space-y-2"><Label htmlFor="edit-employee-username">Username</Label><Input id="edit-employee-username" required maxLength={40} value={editUsername} onChange={e => setEditUsername(e.target.value)} /></div>
           <div className="space-y-2"><Label htmlFor="edit-employee-email">Email</Label><Input id="edit-employee-email" type="email" required maxLength={255} value={editEmail} onChange={e => setEditEmail(e.target.value)} /></div>
+          <div className="space-y-2"><Label htmlFor="edit-employee-phone">Telecaller Mobile</Label><Input id="edit-employee-phone" type="tel" required maxLength={13} value={editAgentPhone} onChange={e => setEditAgentPhone(e.target.value)} placeholder="9876543210 அல்லது +919876543210" /></div>
           <div className="space-y-2"><Label htmlFor="edit-employee-password">New Password (optional)</Label><div className="relative"><Input id="edit-employee-password" type={showEditPassword ? "text" : "password"} autoComplete="new-password" minLength={8} maxLength={128} value={editPassword} onChange={e => setEditPassword(e.target.value)} placeholder="மாற்ற வேண்டுமென்றால் மட்டும் உள்ளிடவும்" className="pr-11" /><button type="button" onClick={() => setShowEditPassword(value => !value)} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground" aria-label={showEditPassword ? "Hide password" : "Show password"} aria-pressed={showEditPassword}>{showEditPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div><p className="text-xs text-muted-foreground">Password மாற்ற வேண்டாம் என்றால் காலியாக விடவும். பழைய password காட்டப்படாது.</p></div>
           <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" disabled={busy} onClick={() => setEditing(null)}>Cancel</Button><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save Changes"}</Button></div>
         </form>

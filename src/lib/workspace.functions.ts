@@ -47,7 +47,7 @@ export const createEmployee = createServerFn({ method: "POST" }).inputValidator(
   const { requireAdmin, workspaceAdmin, recordWorkspaceActivity } = await import("./workspace.server");
   const identity = await requireAdmin();
   const db = workspaceAdmin();
-  const { data: created, error } = await db.auth.admin.createUser({ email: data.email, password: data.password, email_confirm: true, user_metadata: { username: data.username } });
+  const { data: created, error } = await db.auth.admin.createUser({ email: data.email, password: data.password, email_confirm: true, user_metadata: { username: data.username }, app_metadata: { telecaller_phone: data.agentPhone } });
   if (error || !created.user) throw new Error("Account உருவாக்க முடியல. Username/email ஏற்கனவே உள்ளதா சரிபாருங்க.");
   const { error: roleError } = await db.from("user_roles").insert({ user_id: created.user.id, role: "employee" });
   if (roleError) { await db.auth.admin.deleteUser(created.user.id); throw new Error("Employee அனுமதி சேமிக்க முடியல."); }
@@ -57,15 +57,27 @@ export const createEmployee = createServerFn({ method: "POST" }).inputValidator(
 export const listEmployees = createServerFn({ method: "GET" }).handler(async () => {
   const { requireAdmin, workspaceAdmin } = await import("./workspace.server");
   await requireAdmin();
-  const { data, error } = await workspaceAdmin().from("profiles").select("id,username,email,created_at").order("created_at", { ascending: false });
+  const db = workspaceAdmin();
+  const { data: profiles, error } = await db.from("profiles").select("id,username,email,created_at").order("created_at", { ascending: false });
   if (error) throw new Error("Employee விவரங்களை ஏற்ற முடியல.");
-  return data ?? [];
+  if (!profiles?.length) return [];
+  const { data: employeeRoles, error: roleError } = await db.from("user_roles").select("user_id").eq("role", "employee").in("user_id", profiles.map(row => row.id));
+  if (roleError) throw new Error("Employee role விவரங்களை ஏற்ற முடியல.");
+  const employeeIds = new Set((employeeRoles ?? []).map(row => row.user_id));
+  const employees = profiles.filter(row => employeeIds.has(row.id));
+  return Promise.all(employees.map(async row => {
+    const { data: authUser, error: authError } = await db.auth.admin.getUserById(row.id);
+    if (authError) throw new Error("Employee mobile விவரங்களை ஏற்ற முடியல.");
+    const agentPhone = typeof authUser.user?.app_metadata?.telecaller_phone === "string" ? authUser.user.app_metadata.telecaller_phone : "";
+    return { ...row, agentPhone };
+  }));
 });
 export const updateEmployee = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({
   id: z.string().uuid(),
   username: employeeSchema.shape.username,
   email: employeeSchema.shape.email,
   password: z.string().min(8).max(128).optional(),
+  agentPhone: employeeSchema.shape.agentPhone,
 }).parse(v)).handler(async ({ data }) => {
   const { requireAdmin, workspaceAdmin, recordWorkspaceActivity } = await import("./workspace.server");
   const identity = await requireAdmin();
@@ -78,10 +90,13 @@ export const updateEmployee = createServerFn({ method: "POST" }).inputValidator(
   const { data: usernameMatch, error: usernameCheckError } = await db.from("profiles").select("id").eq("username", data.username.trim().toLowerCase()).neq("id", data.id).maybeSingle();
   if (usernameCheckError) throw new Error("Username-ஐ சரிபார்க்க முடியல.");
   if (usernameMatch) throw new Error("இந்த username ஏற்கனவே பயன்படுத்தப்படுகிறது.");
-  const authUpdate: { email: string; email_confirm: boolean; user_metadata: { username: string }; password?: string } = {
+  const { data: authExisting, error: authReadError } = await db.auth.admin.getUserById(data.id);
+  if (authReadError || !authExisting.user) throw new Error("Employee account விவரங்களை ஏற்ற முடியல.");
+  const authUpdate: { email: string; email_confirm: boolean; user_metadata: { username: string }; app_metadata: Record<string, unknown>; password?: string } = {
     email: data.email.trim(),
     email_confirm: true,
     user_metadata: { username: data.username.trim().toLowerCase() },
+    app_metadata: { ...(authExisting.user.app_metadata ?? {}), telecaller_phone: data.agentPhone },
   };
   if (data.password) authUpdate.password = data.password;
   const { error: authError } = await db.auth.admin.updateUserById(data.id, authUpdate);

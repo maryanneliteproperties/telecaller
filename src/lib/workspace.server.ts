@@ -27,7 +27,7 @@ export async function workspaceIdentity(request: Request = getRequest()): Promis
   const cookie = request.headers.get("cookie")?.split(";").map(v => v.trim()).find(v => v.startsWith("workspace_admin="))?.slice("workspace_admin=".length);
   if (cookie && /^[a-f0-9]{64}$/.test(cookie)) {
     const { data } = await db.from("workspace_admin_sessions").select("token_hash").eq("token_hash", await digest(cookie)).gt("expires_at", new Date().toISOString()).maybeSingle();
-    if (data) return { id: "admin", username: "Admin", role: "admin" };
+    if (data) return { id: "admin", username: "Admin", role: "admin", agentPhone: null };
   }
   const token = request.headers.get("authorization")?.match(/^Bearer (.+)$/)?.[1];
   if (!token) return null;
@@ -39,7 +39,8 @@ export async function workspaceIdentity(request: Request = getRequest()): Promis
   ]);
   const role = roles?.some(r => r.role === "admin") ? "admin" : roles?.some(r => r.role === "employee") ? "employee" : null;
   if (!profile || !role) return null;
-  return { id: user.user.id, username: profile.username, role };
+  const agentPhone = typeof user.user.app_metadata?.telecaller_phone === "string" ? user.user.app_metadata.telecaller_phone : null;
+  return { id: user.user.id, username: profile.username, role, agentPhone };
 }
 export async function requireWorkspace(request?: Request) {
   const identity = await workspaceIdentity(request);
