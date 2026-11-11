@@ -58,7 +58,7 @@ function AuthPage() {
       }
       setPassword("");
       setPin("");
-      await navigate({ to: "/dashboard", replace: true });
+      await navigate({ to: "/dashboard/organization", replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login செய்ய முடியல.");
     } finally {
