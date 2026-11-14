@@ -1,5 +1,10 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { getWorkspaceIdentity } from "@/lib/workspace.functions";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  beforeLoad: () => { throw redirect({ to: "/dashboard/organization" }); },
+  beforeLoad: async () => {
+    const identity = await getWorkspaceIdentity();
+    if (!identity) throw redirect({ to: "/auth" });
+    throw redirect({ to: identity.role === "admin" ? "/dashboard/organization" : "/leads" });
+  },
 });
