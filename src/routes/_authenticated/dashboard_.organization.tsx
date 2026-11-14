@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/dashboard_/organization")(
   beforeLoad: async () => {
     const identity = await getWorkspaceIdentity();
     if (!identity) throw redirect({ to: "/auth" });
-    if (identity.role !== "admin") throw redirect({ to: "/leads" });
+    if (identity.role !== "admin") throw redirect({ to: "/new_leads" });
   },
   loader: async ({ context }) => {
     await Promise.all([
