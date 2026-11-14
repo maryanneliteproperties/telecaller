@@ -20,7 +20,8 @@ const dateKey = (date: Date) => {
 export const Route = createFileRoute("/_authenticated/dashboard_/employees")({
   beforeLoad: async () => {
     const identity = await getWorkspaceIdentity();
-    if (identity?.role !== "admin") throw redirect({ to: "/dashboard/organization" });
+    if (!identity) throw redirect({ to: "/auth" });
+    if (identity.role !== "admin") throw redirect({ to: "/leads" });
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(statsOptions),
   head: () => ({ meta: [{ title: "Employees Dashboard · Mary Ann Elite Properties" }] }),
