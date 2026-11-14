@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/dashboard_/employees")({
   beforeLoad: async () => {
     const identity = await getWorkspaceIdentity();
     if (!identity) throw redirect({ to: "/auth" });
-    if (identity.role !== "admin") throw redirect({ to: "/leads" });
+    if (identity.role !== "admin") throw redirect({ to: "/new_leads" });
   },
   loader: ({ context }) => context.queryClient.ensureQueryData(statsOptions),
   head: () => ({ meta: [{ title: "Employees Dashboard · Mary Ann Elite Properties" }] }),
