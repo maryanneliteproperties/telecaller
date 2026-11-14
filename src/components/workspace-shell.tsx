@@ -36,7 +36,7 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
   }
   const nav = (compact: boolean) => <>
     <div className="flex h-20 shrink-0 items-center justify-between gap-2 border-b border-sidebar-border px-4">
-      <Link to={identity.role === "admin" ? "/dashboard" : "/leads"} aria-label="AI Call workspace" onClick={() => setMobileOpen(false)} className="flex min-w-0 items-center gap-3">
+      <Link to={identity.role === "admin" ? "/dashboard" : "/new_leads"} aria-label="AI Call workspace" onClick={() => setMobileOpen(false)} className="flex min-w-0 items-center gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#8245EF] to-[#D43BCB] text-white shadow-sm"><Building2 className="h-5 w-5" /></span>
         {!compact && <span className="text-sm font-semibold leading-tight">Mary Ann Elite<span className="block text-xs font-normal text-sidebar-foreground/75">Properties</span></span>}
       </Link>
