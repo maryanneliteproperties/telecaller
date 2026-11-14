@@ -36,14 +36,14 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
   }
   const nav = (compact: boolean) => <>
     <div className="flex h-20 shrink-0 items-center justify-between gap-2 border-b border-sidebar-border px-4">
-      <Link to="/dashboard" aria-label="AI Call workspace" onClick={() => setMobileOpen(false)} className="flex min-w-0 items-center gap-3">
+      <Link to={identity.role === "admin" ? "/dashboard" : "/leads"} aria-label="AI Call workspace" onClick={() => setMobileOpen(false)} className="flex min-w-0 items-center gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#8245EF] to-[#D43BCB] text-white shadow-sm"><Building2 className="h-5 w-5" /></span>
         {!compact && <span className="text-sm font-semibold leading-tight">Mary Ann Elite<span className="block text-xs font-normal text-sidebar-foreground/75">Properties</span></span>}
       </Link>
       <Button type="button" variant="ghost" size="icon" aria-label="Close sidebar" title="Close sidebar" className="shrink-0 text-sidebar-foreground hover:bg-sidebar-accent min-[1200px]:hidden" onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></Button>
     </div>
     <nav className="flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-3 pb-8 pt-8" aria-label="Main menu">
-      <details open className="group rounded-xl">
+      {identity.role === "admin" && <details open className="group rounded-xl">
         <summary className={`flex min-h-10 cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2 text-[15px] font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path.startsWith("/dashboard") ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/90"}`} title="Dashboard">
           <span className="flex min-w-0 items-center gap-3"><LayoutDashboard className="h-4 w-4 shrink-0" />{!compact && <span>Dashboard</span>}</span>
           {!compact && <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />}
@@ -56,7 +56,7 @@ export function WorkspaceShell({ identity, children }: { identity: WorkspaceIden
             <Link to="/dashboard/employees" onClick={() => setMobileOpen(false)}><Users className="h-4 w-4" />{!compact && <span>Employees</span>}</Link>
           </Button>}
         </div>
-      </details>
+      </details>}
       {[...items, ...(identity.role === "admin" ? [{ title: "Projects", to: "/projects" as const, icon: FolderKanban }, { title: "Employee Accounts", to: "/employees" as const, icon: ShieldCheck }, { title: "History", to: "/history" as const, icon: History }] : [])].map(item => <Button key={item.title} asChild variant="ghost" className={`min-h-10 w-full justify-start rounded-xl px-3 py-2 text-[15px] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${path === item.to || (item.to !== "/" && path.startsWith(item.to)) ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm" : "text-sidebar-foreground/80"}`} title={item.title}><Link to={item.to} onClick={() => setMobileOpen(false)}><item.icon />{!compact && <span>{item.title}</span>}</Link></Button>)}
     </nav>
   </>;
