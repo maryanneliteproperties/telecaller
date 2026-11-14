@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { listLeads, listAvailableProjects } from "@/lib/workspace.functions";
+import { getWorkspaceIdentity, listLeads, listAvailableProjects } from "@/lib/workspace.functions";
 import { Button } from "@/components/ui/button";
 import { CalendarClock, CalendarDays, Clock3, Users, UserPlus, MapPin, ArrowUpRight, Phone, CheckCircle2 } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts";
@@ -10,6 +10,11 @@ const leadsOptions = queryOptions({ queryKey: ["workspace", "leads"], queryFn: (
 const projectsOptions = queryOptions({ queryKey: ["workspace", "projects"], queryFn: () => listAvailableProjects() });
 
 export const Route = createFileRoute("/_authenticated/dashboard_/organization")({
+  beforeLoad: async () => {
+    const identity = await getWorkspaceIdentity();
+    if (!identity) throw redirect({ to: "/auth" });
+    if (identity.role !== "admin") throw redirect({ to: "/leads" });
+  },
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(leadsOptions),
