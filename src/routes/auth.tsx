@@ -58,7 +58,7 @@ function AuthPage() {
       }
       setPassword("");
       setPin("");
-      await navigate({ to: mode === "admin" ? "/dashboard/organization" : "/leads", replace: true });
+      await navigate({ to: mode === "admin" ? "/dashboard/organization" : "/new_leads", replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login செய்ய முடியல.");
     } finally {
