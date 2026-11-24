@@ -131,7 +131,7 @@ export const submitLead = createServerFn({ method: "POST" }).inputValidator((v: 
     // Link this newly submitted call to a single matching LinkedIn-assigned lead
     // owned by the same employee. Ambiguous phone matches are deliberately left unlinked.
     if (identity.role !== "admin") {
-      const digits = (value: string) => value.replace(/\\D/g, "");
+      const digits = (value: string) => value.replace(/\D/g, "");
       const { data: candidates } = await db.from("linkedin_assigned_leads")
         .select("id,phone").eq("owner_id", identity.id).is("linked_telecaller_data_id", null).limit(500);
       const matches = (candidates ?? []).filter(row => row.phone && digits(row.phone) === digits(data.customerPhone));
