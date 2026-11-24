@@ -127,7 +127,24 @@ export const submitLead = createServerFn({ method: "POST" }).inputValidator((v: 
   if (uploadError) throw new Error("Audio சேமிக்க முடியல. மீண்டும் முயற்சி பண்ணுங்க.");
   const { data: saved, error } = await db.from("telecaller_data").upsert({ submission_key: data.submissionKey, owner_id: ownerId, customer_name: data.customerName, customer_phone: data.customerPhone, follow_up_date: data.followUpDate, lead_stage: data.leadStage, project_id: data.projectId ?? null, telecaller_name: identity.username, audio_name: data.file.name, audio_path: path, processing_status: "submitted" }, { onConflict: "submission_key", ignoreDuplicates: true }).select("id").maybeSingle();
   if (error) throw new Error("Customer விவரங்கள் சேமிக்க முடியல. மீண்டும் Submit பண்ணுங்க.");
-  if (saved) { await (await import("./workspace.server")).recordWorkspaceActivity(identity, { action: "created", entityType: "lead", entityId: saved.id, entityLabel: data.customerName, details: { phone: data.customerPhone } }); return { id: saved.id as string }; }
+  if (saved) {
+    // Link this newly submitted call to a single matching LinkedIn-assigned lead
+    // owned by the same employee. Ambiguous phone matches are deliberately left unlinked.
+    if (identity.role !== "admin") {
+      const digits = (value: string) => value.replace(/\\D/g, "");
+      const { data: candidates } = await db.from("linkedin_assigned_leads")
+        .select("id,phone").eq("owner_id", identity.id).is("linked_telecaller_data_id", null).limit(500);
+      const matches = (candidates ?? []).filter(row => row.phone && digits(row.phone) === digits(data.customerPhone));
+      if (matches.length === 1) {
+        const { error: linkError } = await db.from("linkedin_assigned_leads")
+          .update({ linked_telecaller_data_id: saved.id, updated_at: new Date().toISOString() })
+          .eq("id", matches[0].id).is("linked_telecaller_data_id", null);
+        if (linkError) console.error("[linkedin-lead-link] failed", { code: linkError.code, message: linkError.message });
+      }
+    }
+    await (await import("./workspace.server")).recordWorkspaceActivity(identity, { action: "created", entityType: "lead", entityId: saved.id, entityLabel: data.customerName, details: { phone: data.customerPhone } });
+    return { id: saved.id as string };
+  }
   const { data: duplicate } = await db.from("telecaller_data").select("id").eq("submission_key", data.submissionKey).maybeSingle();
   if (!duplicate) throw new Error("Submission-ஐ உறுதி செய்ய முடியல.");
   return { id: duplicate.id as string };
