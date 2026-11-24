@@ -148,6 +148,35 @@ export const listLeads = createServerFn({ method: "GET" }).handler(async () => {
   return rows.map(row => ({ ...row, audioUrl: row.audio_path ? signedByPath.get(row.audio_path) ?? null : null }));
 });
 
+
+export const listLinkedInAssignedLeads = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
+  const identity = await requireWorkspace(), db = workspaceAdmin();
+  let query = db.from("linkedin_assigned_leads").select("*").order("assigned_at", { ascending: false }).limit(300);
+  if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
+  const { data: rows, error } = await query;
+  if (error) throw new Error("LinkedIn assigned leads ஏற்ற முடியல. Integration SQL run செய்துள்ளீர்களா சரிபார்க்கவும்.");
+  const callIds = (rows ?? []).flatMap(row => row.linked_telecaller_data_id ? [row.linked_telecaller_data_id] : []);
+  const { data: calls, error: callsError } = callIds.length
+    ? await db.from("telecaller_data").select("id,call_report_id,project_id,follow_up_date,site_visit_date,audio_name,audio_path,overall_score,created_at").in("id", callIds)
+    : { data: [], error: null };
+  if (callsError) throw new Error("LinkedIn lead call details ஏற்ற முடியல.");
+  const byId = new Map((calls ?? []).map(call => [call.id, call]));
+  const paths = (calls ?? []).flatMap(call => call.audio_path ? [call.audio_path] : []);
+  const { data: signed } = paths.length ? await db.storage.from("call-audio").createSignedUrls(paths, 900) : { data: [] };
+  const signedByPath = new Map((signed ?? []).map(file => [file.path, file.signedUrl]));
+  const projectIds = [...new Set((calls ?? []).map(call => call.project_id).filter(Boolean))];
+  const { data: projects } = projectIds.length ? await db.from("projects").select("id,name").in("id", projectIds) : { data: [] };
+  const projectById = new Map((projects ?? []).map(project => [project.id, project.name]));
+  return (rows ?? []).map(row => {
+    const call = row.linked_telecaller_data_id ? byId.get(row.linked_telecaller_data_id) : null;
+    return {
+      ...row,
+      call: call ? { ...call, projectName: projectById.get(call.project_id ?? "") ?? null, audioUrl: call.audio_path ? signedByPath.get(call.audio_path) ?? null : null } : null,
+    };
+  });
+});
+
 export const updateLeadFollowUp = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({
   id: z.string().uuid(),
   followUpType: z.enum(["site_visit", "conversion"]),
