@@ -11,7 +11,7 @@ export const Route = createFileRoute("/api/integrations/linkedin-leads")({
         const expected = process.env["LINKEDIN_LEAD_SYNC_SECRET"];
         const supplied = request.headers.get("x-linkedin-sync-secret") ?? "";
         if (!expected || supplied.length !== expected.length ||
-            !crypto.subtle || supplied !== expected) return json(401, { error: "Unauthorized integration request." });
+            supplied !== expected) return json(401, { error: "Unauthorized integration request." });
 
         let input: Record<string, unknown>;
         try { input = await request.json() as Record<string, unknown>; }
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/api/integrations/linkedin-leads")({
         }
 
         const { workspaceAdmin } = await import("@/lib/workspace.server");
-        let db;
+        let db: ReturnType<typeof workspaceAdmin>;
         try { db = workspaceAdmin(); }
         catch { return json(503, { error: "Telecaller database integration is not configured." }); }
         const { data: profile, error: profileError } = await db.from("profiles")
