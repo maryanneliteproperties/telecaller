@@ -172,7 +172,12 @@ export const listLinkedInAssignedLeads = createServerFn({ method: "GET" }).handl
   let query = db.from("linkedin_assigned_leads").select("*").order("assigned_at", { ascending: false }).limit(300);
   if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
   const { data: rows, error } = await query;
-  if (error) throw new Error("LinkedIn assigned leads ஏற்ற முடியல. Integration SQL run செய்துள்ளீர்களா சரிபார்க்கவும்.");
+  if (error) {
+    // Keep the existing Common Leads page available if the integration migration
+    // has not been applied yet; the LinkedIn tab will remain empty until setup.
+    console.error("[linkedin-assigned-leads] query failed", { code: error.code, message: error.message });
+    return [];
+  }
   const callIds = (rows ?? []).flatMap(row => row.linked_telecaller_data_id ? [row.linked_telecaller_data_id] : []);
   const { data: calls, error: callsError } = callIds.length
     ? await db.from("telecaller_data").select("id,call_report_id,project_id,follow_up_date,site_visit_date,audio_name,audio_path,overall_score,created_at").in("id", callIds)
