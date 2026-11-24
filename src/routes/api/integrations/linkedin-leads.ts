@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
 
 function json(status: number, body: Record<string, unknown>) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -28,10 +27,10 @@ export const Route = createFileRoute("/api/integrations/linkedin-leads")({
           return json(400, { error: "Required LinkedIn lead fields are missing or invalid." });
         }
 
-        const url = process.env["SUPABASE_URL"];
-        const key = process.env["EXTERNAL_SUPABASE_SECRET_KEY"];
-        if (!url || !key) return json(503, { error: "Telecaller database integration is not configured." });
-        const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+        const { workspaceAdmin } = await import("@/lib/workspace.server");
+        let db;
+        try { db = workspaceAdmin(); }
+        catch { return json(503, { error: "Telecaller database integration is not configured." }); }
         const { data: profile, error: profileError } = await db.from("profiles")
           .select("id,email").ilike("email", employeeEmail).maybeSingle();
         if (profileError) return json(503, { error: "Could not verify Telecaller employee account." });
