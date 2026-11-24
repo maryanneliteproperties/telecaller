@@ -127,7 +127,24 @@ export const submitLead = createServerFn({ method: "POST" }).inputValidator((v: 
   if (uploadError) throw new Error("Audio சேமிக்க முடியல. மீண்டும் முயற்சி பண்ணுங்க.");
   const { data: saved, error } = await db.from("telecaller_data").upsert({ submission_key: data.submissionKey, owner_id: ownerId, customer_name: data.customerName, customer_phone: data.customerPhone, follow_up_date: data.followUpDate, lead_stage: data.leadStage, project_id: data.projectId ?? null, telecaller_name: identity.username, audio_name: data.file.name, audio_path: path, processing_status: "submitted" }, { onConflict: "submission_key", ignoreDuplicates: true }).select("id").maybeSingle();
   if (error) throw new Error("Customer விவரங்கள் சேமிக்க முடியல. மீண்டும் Submit பண்ணுங்க.");
-  if (saved) { await (await import("./workspace.server")).recordWorkspaceActivity(identity, { action: "created", entityType: "lead", entityId: saved.id, entityLabel: data.customerName, details: { phone: data.customerPhone } }); return { id: saved.id as string }; }
+  if (saved) {
+    // Link this newly submitted call to a single matching LinkedIn-assigned lead
+    // owned by the same employee. Ambiguous phone matches are deliberately left unlinked.
+    if (identity.role !== "admin") {
+      const digits = (value: string) => value.replace(/\D/g, "");
+      const { data: candidates } = await db.from("linkedin_assigned_leads")
+        .select("id,phone").eq("owner_id", identity.id).is("linked_telecaller_data_id", null).limit(500);
+      const matches = (candidates ?? []).filter(row => row.phone && digits(row.phone) === digits(data.customerPhone));
+      if (matches.length === 1) {
+        const { error: linkError } = await db.from("linkedin_assigned_leads")
+          .update({ linked_telecaller_data_id: saved.id, updated_at: new Date().toISOString() })
+          .eq("id", matches[0].id).is("linked_telecaller_data_id", null);
+        if (linkError) console.error("[linkedin-lead-link] failed", { code: linkError.code, message: linkError.message });
+      }
+    }
+    await (await import("./workspace.server")).recordWorkspaceActivity(identity, { action: "created", entityType: "lead", entityId: saved.id, entityLabel: data.customerName, details: { phone: data.customerPhone } });
+    return { id: saved.id as string };
+  }
   const { data: duplicate } = await db.from("telecaller_data").select("id").eq("submission_key", data.submissionKey).maybeSingle();
   if (!duplicate) throw new Error("Submission-ஐ உறுதி செய்ய முடியல.");
   return { id: duplicate.id as string };
@@ -146,6 +163,40 @@ export const listLeads = createServerFn({ method: "GET" }).handler(async () => {
     : { data: [] };
   const signedByPath = new Map((signedFiles ?? []).map(file => [file.path, file.signedUrl]));
   return rows.map(row => ({ ...row, audioUrl: row.audio_path ? signedByPath.get(row.audio_path) ?? null : null }));
+});
+
+
+export const listLinkedInAssignedLeads = createServerFn({ method: "GET" }).handler(async () => {
+  const { requireWorkspace, workspaceAdmin } = await import("./workspace.server");
+  const identity = await requireWorkspace(), db = workspaceAdmin();
+  let query = db.from("linkedin_assigned_leads").select("*").order("assigned_at", { ascending: false }).limit(300);
+  if (identity.role !== "admin") query = query.eq("owner_id", identity.id);
+  const { data: rows, error } = await query;
+  if (error) {
+    // Keep the existing Common Leads page available if the integration migration
+    // has not been applied yet; the LinkedIn tab will remain empty until setup.
+    console.error("[linkedin-assigned-leads] query failed", { code: error.code, message: error.message });
+    return [];
+  }
+  const callIds = (rows ?? []).flatMap(row => row.linked_telecaller_data_id ? [row.linked_telecaller_data_id] : []);
+  const { data: calls, error: callsError } = callIds.length
+    ? await db.from("telecaller_data").select("id,call_report_id,project_id,follow_up_date,site_visit_date,audio_name,audio_path,overall_score,created_at").in("id", callIds)
+    : { data: [], error: null };
+  if (callsError) throw new Error("LinkedIn lead call details ஏற்ற முடியல.");
+  const byId = new Map((calls ?? []).map(call => [call.id, call]));
+  const paths = (calls ?? []).flatMap(call => call.audio_path ? [call.audio_path] : []);
+  const { data: signed } = paths.length ? await db.storage.from("call-audio").createSignedUrls(paths, 900) : { data: [] };
+  const signedByPath = new Map((signed ?? []).map(file => [file.path, file.signedUrl]));
+  const projectIds = [...new Set((calls ?? []).map(call => call.project_id).filter(Boolean))];
+  const { data: projects } = projectIds.length ? await db.from("projects").select("id,name").in("id", projectIds) : { data: [] };
+  const projectById = new Map((projects ?? []).map(project => [project.id, project.name]));
+  return (rows ?? []).map(row => {
+    const call = row.linked_telecaller_data_id ? byId.get(row.linked_telecaller_data_id) : null;
+    return {
+      ...row,
+      call: call ? { ...call, projectName: projectById.get(call.project_id ?? "") ?? null, audioUrl: call.audio_path ? signedByPath.get(call.audio_path) ?? null : null } : null,
+    };
+  });
 });
 
 export const updateLeadFollowUp = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({
