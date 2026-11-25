@@ -199,6 +199,70 @@ export const listLinkedInAssignedLeads = createServerFn({ method: "GET" }).handl
   });
 });
 
+const linkedInAssignedLeadInput = z.object({
+  id: z.string().uuid(),
+  profileName: z.string().trim().min(1, "Profile Name கட்டாயம்.").max(200),
+  designation: z.string().trim().max(200).nullable(),
+  company: z.string().trim().max(200).nullable(),
+  phone: z.string().trim().max(50).nullable(),
+  contactEmail: z.string().trim().max(254).nullable(),
+  linkedinUrl: z.string().trim().max(2048).nullable(),
+  project: z.string().trim().max(200).nullable(),
+  followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  siteVisitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+});
+const linkedInAssignedLeadId = z.object({ id: z.string().uuid() });
+
+export const updateLinkedInAssignedLead = createServerFn({ method: "POST" })
+  .inputValidator((v: unknown) => linkedInAssignedLeadInput.parse(v))
+  .handler(async ({ data }) => {
+    const { requireWorkspace, workspaceAdmin, recordWorkspaceActivity } = await import("./workspace.server");
+    const identity = await requireWorkspace();
+    if (identity.role !== "employee") throw new Error("Employee account மட்டும் LinkedIn lead update செய்யலாம்.");
+    const db = workspaceAdmin();
+    const values = {
+      profile_name: data.profileName,
+      designation: data.designation || null,
+      company: data.company || null,
+      phone: data.phone || null,
+      contact_email: data.contactEmail || null,
+      linkedin_url: data.linkedinUrl || null,
+      project: data.project || null,
+      follow_up_date: data.followUpDate,
+      site_visit_date: data.siteVisitDate,
+      updated_at: new Date().toISOString(),
+    };
+    const { data: row, error } = await db.from("linkedin_assigned_leads")
+      .update(values).eq("id", data.id).eq("owner_id", identity.id)
+      .select("id,profile_name").maybeSingle();
+    if (error) throw new Error("LinkedIn lead update செய்ய முடியல.");
+    if (!row) throw new Error("இந்த LinkedIn lead கிடைக்கல அல்லது update செய்ய அனுமதி இல்லை.");
+    await recordWorkspaceActivity(identity, {
+      action: "updated", entityType: "linkedin_assigned_lead", entityId: data.id,
+      entityLabel: row.profile_name, details: { fields: Object.keys(values).filter(key => key !== "updated_at") },
+    });
+    return { ok: true };
+  });
+
+export const deleteLinkedInAssignedLead = createServerFn({ method: "POST" })
+  .inputValidator((v: unknown) => linkedInAssignedLeadId.parse(v))
+  .handler(async ({ data }) => {
+    const { requireWorkspace, workspaceAdmin, recordWorkspaceActivity } = await import("./workspace.server");
+    const identity = await requireWorkspace();
+    if (identity.role !== "employee") throw new Error("Employee account மட்டும் LinkedIn lead delete செய்யலாம்.");
+    const db = workspaceAdmin();
+    const { data: lead, error: readError } = await db.from("linkedin_assigned_leads")
+      .select("id,profile_name").eq("id", data.id).eq("owner_id", identity.id).maybeSingle();
+    if (readError || !lead) throw new Error("இந்த LinkedIn lead கிடைக்கல அல்லது delete செய்ய அனுமதி இல்லை.");
+    const { error } = await db.from("linkedin_assigned_leads")
+      .delete().eq("id", data.id).eq("owner_id", identity.id);
+    if (error) throw new Error("LinkedIn lead delete செய்ய முடியல.");
+    await recordWorkspaceActivity(identity, {
+      action: "deleted", entityType: "linkedin_assigned_lead", entityId: data.id, entityLabel: lead.profile_name,
+    });
+    return { ok: true };
+  });
+
 export const updateLeadFollowUp = createServerFn({ method: "POST" }).inputValidator((v: unknown) => z.object({
   id: z.string().uuid(),
   followUpType: z.enum(["site_visit", "conversion"]),
