@@ -208,7 +208,7 @@ const linkedInAssignedLeadInput = z.object({
   contactEmail: z.string().trim().max(254).nullable(),
   linkedinUrl: z.string().trim().max(2048).nullable(),
   project: z.string().trim().max(200).nullable(),
-  followUpDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).nullable(),
+  followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   siteVisitDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).nullable(),
 });
 const linkedInAssignedLeadId = z.object({ id: z.string().uuid() });
