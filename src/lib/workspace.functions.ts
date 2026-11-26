@@ -204,8 +204,8 @@ const linkedInAssignedLeadInput = z.object({
   profileName: z.string().trim().min(1, "Profile Name கட்டாயம்.").max(200),
   designation: z.string().trim().max(200).nullable(),
   company: z.string().trim().max(200).nullable(),
-  phone: z.string().trim().max(20).refine(value => !value || /^(?:\+91[\s-]?)?[6-9]\d{9}$/.test(value), "Valid 10-digit Indian mobile number enter செய்யவும்.").nullable(),
-  contactEmail: z.string().trim().max(254).refine(value => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "Valid email address enter செய்யவும்.").nullable(),
+  phone: z.string().trim().max(30).refine(value => { if (!value) return true; const digits = value.replace(/\D/g, ""); return (digits.length === 10 && /^[6-9]\d{9}$/.test(digits)) || (digits.length === 12 && digits.startsWith("91") && /^[6-9]\d{9}$/.test(digits.slice(2))); }, "தயவுசெய்து சரியான 10 இலக்க இந்திய mobile number உள்ளிடவும்.").nullable(),
+  contactEmail: z.string().trim().max(254).refine(value => !value || z.string().email().safeParse(value).success, "தயவுசெய்து சரியான email address உள்ளிடவும்.").nullable(),
   linkedinUrl: z.string().trim().max(2048).nullable(),
   project: z.string().trim().max(200).nullable(),
   followUpDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
@@ -214,7 +214,7 @@ const linkedInAssignedLeadInput = z.object({
 const linkedInAssignedLeadId = z.object({ id: z.string().uuid() });
 
 export const updateLinkedInAssignedLead = createServerFn({ method: "POST" })
-  .inputValidator((v: unknown) => linkedInAssignedLeadInput.parse(v))
+  .inputValidator((v: unknown) => { const parsed = linkedInAssignedLeadInput.safeParse(v); if (!parsed.success) { const issue = parsed.error.issues[0]; throw new Error(issue?.message ?? "Phone number / Email சரிபார்க்கவும்."); } return parsed.data; })
   .handler(async ({ data }) => {
     const { requireWorkspace, workspaceAdmin, recordWorkspaceActivity } = await import("./workspace.server");
     const identity = await requireWorkspace();
