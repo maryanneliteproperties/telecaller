@@ -82,10 +82,44 @@ export const Route = createFileRoute("/api/transcribe")({
         }
 
         let mimeType = transcriptionAudioType(file);
-        // AMR is common in phone-call recordings but isn't accepted by Gemini.
-        // Decode it with the already-installed AMR decoder and repackage as WAV.
-        if (!GEMINI_SUPPORTED_AUDIO_TYPES.has(mimeType)) {
-          const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+        const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+
+        // Raw AAC/ADTS recordings from WhatsApp can be rejected by Gemini even
+        // when labelled audio/aac. Convert AAC to PCM WAV using the FFmpeg WASM
+        // decoder already shipped with the app. The stored original stays intact.
+        if (extension === "aac") {
+          try {
+            const decoderResponse = await fetch(new URL("/audio-decoder/ffmpeg-core.bin", request.url));
+            if (!decoderResponse.ok || !decoderResponse.body) throw new Error("FFmpeg decoder asset unavailable.");
+            const wasmBinary = await new Response(
+              decoderResponse.body.pipeThrough(new DecompressionStream("gzip")),
+            ).arrayBuffer();
+            const { default: createCore } = await import("@ffmpeg/core");
+            type FfmpegDecoder = {
+              FS: { writeFile: (name: string, bytes: Uint8Array) => void; readFile: (name: string) => Uint8Array };
+              exec: (...args: string[]) => number;
+            };
+            const createDecoder = createCore as unknown as (options: { wasmBinary: ArrayBuffer }) => Promise<FfmpegDecoder>;
+            const decoder = await createDecoder({ wasmBinary });
+            decoder.FS.writeFile("input.aac", new Uint8Array(await file.arrayBuffer()));
+            const exitCode = decoder.exec(
+              "-v", "error", "-i", "input.aac", "-vn", "-ac", "1", "-ar", "16000",
+              "-c:a", "pcm_s16le", "output.wav",
+            );
+            if (exitCode !== 0) throw new Error(`FFmpeg AAC conversion failed with exit code ${exitCode}.`);
+            const wav = decoder.FS.readFile("output.wav");
+            file = new File(
+              [new Uint8Array(wav)],
+              `${file.name.replace(/\.[^.]+$/, "") || "recording"}.wav`,
+              { type: "audio/wav" },
+            );
+            mimeType = "audio/wav";
+          } catch (conversionError) {
+            console.error("AAC to WAV conversion failed", file.name, conversionError);
+            return jsonError(400, "இந்த AAC recording-ஐ WAV-ஆக மாற்ற முடியவில்லை. வேறு AAC recording அல்லது WAV/MP3 file முயற்சிக்கவும்.");
+          }
+        } else if (!GEMINI_SUPPORTED_AUDIO_TYPES.has(mimeType)) {
+          // AMR-NB/WB continue to use the existing dedicated AMR decoder.
           if (extension !== "amr" && extension !== "awb") {
             return jsonError(400, friendlyTranscriptionError(`Unsupported file format: ${extension || mimeType}`));
           }
