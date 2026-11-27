@@ -260,7 +260,61 @@ export const Route = createFileRoute("/api/transcribe")({
         } catch {
           return jsonError(502, "Gemini returned an unreadable response. Please try again.");
         }
-        if (!transcript) return jsonError(502, "Gemini returned an empty transcript. Please try another recording.");
+        // The dedicated transcription model can occasionally complete with zero
+        // output tokens (HTTP 200 but no transcript). Fall back to Flash Lite using
+        // the same uploaded audio file so the employee does not have to re-upload.
+        if (!transcript) {
+          const fallbackModel = "gemini-3.5-flash-lite";
+          try {
+            const fallbackResponse = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${fallbackModel}:generateContent`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+                body: JSON.stringify({
+                  contents: [{
+                    role: "user",
+                    parts: [
+                      { fileData: { mimeType, fileUri } },
+                      {
+                        text: "Transcribe this call recording exactly as spoken. Preserve Tamil, English, and Tanglish words in their original language. Do not translate, summarize, or add commentary. Return only the transcript.",
+                      },
+                    ],
+                  }],
+                  generationConfig: { temperature: 0 },
+                }),
+                signal: makeSignal(),
+              },
+            );
+            if (fallbackResponse.ok) {
+              const fallbackData = await fallbackResponse.json();
+              const fallbackParts = fallbackData?.candidates?.flatMap(
+                (candidate: { content?: { parts?: Array<{ text?: string }> } }) =>
+                  candidate?.content?.parts ?? [],
+              ) ?? [];
+              transcript = fallbackParts
+                .map((part: { text?: string }) => typeof part.text === "string" ? part.text.trim() : "")
+                .filter(Boolean)
+                .join("\\n")
+                .trim();
+              if (!transcript) {
+                console.error("[transcribe] Flash Lite fallback returned no transcript", JSON.stringify({
+                  keys: fallbackData && typeof fallbackData === "object" ? Object.keys(fallbackData) : [],
+                  finishReasons: fallbackData?.candidates?.map((candidate: { finishReason?: string }) => candidate.finishReason),
+                  mimeType,
+                  fileSize: file.size,
+                }));
+              }
+            } else {
+              const fallbackError = await fallbackResponse.text();
+              console.error("[transcribe] Flash Lite fallback failed", fallbackResponse.status, fallbackError);
+            }
+          } catch (fallbackError) {
+            console.error("[transcribe] Flash Lite fallback request failed", fallbackError);
+            if (request.signal.aborted) return jsonError(499, "Request cancelled. Please try again.");
+          }
+        }
+        if (!transcript) return jsonError(502, "Gemini returned an empty transcript after retrying with a fallback model. Please try another recording.");
 
         const encoder = new TextEncoder();
         const stream = new ReadableStream<Uint8Array>({
