@@ -89,7 +89,7 @@ export const Route = createFileRoute("/api/transcribe")({
         // to run the browser-worker FFmpeg WASM build inside the server route.
         if (extension === "aac") {
           mimeType = "audio/aac";
-        } else if (!GEMINI_SUPPORTED_AUDIO_TYPES.has(mimeType))) {
+        } else if (!GEMINI_SUPPORTED_AUDIO_TYPES.has(mimeType)) {
           // AMR-NB/WB continue to use the existing dedicated AMR decoder.
           if (extension !== "amr" && extension !== "awb") {
             return jsonError(400, friendlyTranscriptionError(`Unsupported file format: ${extension || mimeType}`));
