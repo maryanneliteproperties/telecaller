@@ -4,6 +4,8 @@ import { routeTree } from "./routeTree.gen";
 
 export const getRouter = () => {
   const queryClient = new QueryClient();
+  // Reuse recently fetched workspace records during route transitions.
+  queryClient.setQueryDefaults(["workspace"], { staleTime: 15_000 });
 
   const router = createRouter({
     routeTree,
