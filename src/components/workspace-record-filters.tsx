@@ -9,11 +9,12 @@ type FilterRow = {
 type ProjectOption = { id: string; name: string };
 
 export function WorkspaceRecordFilters<T extends FilterRow>({
-  rows, projects, employeeNames = [], getDate, onChange,
+  rows, projects, employeeNames = [], showEmployeeFilter = true, getDate, onChange,
 }: {
   rows: T[];
   projects: ProjectOption[];
   employeeNames?: string[];
+  showEmployeeFilter?: boolean;
   getDate: (row: T) => string | null | undefined;
   onChange: (rows: T[]) => void;
 }) {
@@ -53,12 +54,12 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
       const caller = (row.telecaller_name ?? "").toLowerCase();
       const matchesSearch = !term || name.includes(term) || phone.includes(phoneTerm) || caller.includes(term);
 
-      return (employee === "all" || row.telecaller_name === employee)
+      return (!showEmployeeFilter || employee === "all" || row.telecaller_name === employee)
         && (project === "all" || row.project_id === project)
         && (!wantedDate || date === wantedDate)
         && matchesSearch;
     });
-  }, [rows, employee, project, datePreset, customDate, search, getDate]);
+  }, [rows, employee, project, datePreset, customDate, search, getDate, showEmployeeFilter]);
 
   useEffect(() => { onChange(filtered); }, [filtered, onChange]);
 
@@ -68,6 +69,7 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
   return (
     <section className="rounded-2xl border border-indigo-600 bg-gradient-to-r from-indigo-600 to-violet-600 p-3 shadow-sm" aria-label="Record filters">
       <div className="flex flex-wrap items-end gap-3">
+        {showEmployeeFilter && (
         <label className="w-full sm:w-[190px]">
           <span className={label}>Employee</span>
           <select className={field} value={employee} onChange={e => setEmployee(e.target.value)}>
@@ -75,6 +77,7 @@ export function WorkspaceRecordFilters<T extends FilterRow>({
             {employees.map(name => <option key={name} value={name}>{/^admin$/i.test(name) ? "Admin" : name}</option>)}
           </select>
         </label>
+        )}
 
         <label className="w-[190px] shrink-0">
           <span className={label}>Project</span>
