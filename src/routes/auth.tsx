@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const adminLogin = useServerFn(loginAdmin);
   const employeeLogin = useServerFn(loginEmployee);
   const [mode, setMode] = useState<"employee" | "admin">("employee");
@@ -56,6 +58,8 @@ function AuthPage() {
         const { error } = await (await getDestinationClient()).auth.setSession(session);
         if (error) throw new Error("Login session அமைக்க முடியல.");
       }
+      await queryClient.cancelQueries();
+      queryClient.clear();
       setPassword("");
       setPin("");
       await navigate({ to: mode === "admin" ? "/dashboard/organization" : "/new_leads", replace: true });
