@@ -145,7 +145,7 @@ export function LeadsPage({ identity, compact = false }: { identity: { role: "ad
     </div>
     <div className="flex gap-2 border-b" role="tablist" aria-label="Lead source tabs"><button type="button" role="tab" aria-selected={activeTab === "common"} onClick={() => setActiveTab("common")} className={activeTab === "common" ? "border-b-2 border-primary px-4 py-3 text-sm font-semibold" : "border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-muted-foreground"}>Leads</button><button type="button" role="tab" aria-selected={activeTab === "linkedin"} onClick={() => setActiveTab("linkedin")} className={activeTab === "linkedin" ? "border-b-2 border-primary px-4 py-3 text-sm font-semibold" : "border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-muted-foreground"}>Assign from LinkedIn ({linkedInRows.length})</button></div>
     {activeTab === "common" && <>
-    <div className={compact ? "my-2" : "my-7"}><WorkspaceRecordFilters rows={data} projects={projects} employeeNames={employees} showEmployeeFilter={identity?.role !== "employee"} getDate={createdDate} onChange={handleFilterChange} /></div>
+    <div className={compact ? "my-2" : "my-7"}><WorkspaceRecordFilters rows={data} projects={projects} employeeNames={employees} showEmployeeFilter={identity?.role !== "employee"} showExtendedDateFilters getDate={createdDate} onChange={handleFilterChange} /></div>
     {downloadError && <p role="alert" className="mb-4 text-sm text-destructive">{downloadError}</p>}
     {visitError && <p role="alert" className="mb-4 text-sm text-destructive">{visitError}</p>}
     {actionError && <p role="alert" className="mb-4 text-sm text-destructive">{actionError}</p>}
